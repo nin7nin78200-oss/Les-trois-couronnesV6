@@ -72,3 +72,11 @@ header #sound{margin:8px 5px 0;padding:9px 12px;font-size:12px}
 @keyframes victoryAppear{from{opacity:0;transform:translateY(12px) scale(.94)}to{opacity:1;transform:translateY(0) scale(1)}}
 @media(max-width:440px){.victory-modal #rematch-members{grid-template-columns:1fr}.victory-modal{padding:20px}}
 @media(prefers-reduced-motion:reduce){.victory-modal{animation:none}}
+
+/* V6.3.1 : couronnes réelles et actions de la fenêtre finale */
+.victory-crowns{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:5px 13px;letter-spacing:normal;margin:10px 0 2px}
+.victory-crowns span{display:inline-block;font-size:30px;line-height:1.1}
+.victory-score{font-size:14px;font-weight:700;color:#f4d07a;margin:0 0 12px}
+.victory-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}
+.victory-actions button{flex:1 1 190px;max-width:280px;min-width:0!important}
+#return-lobby-hint{margin:8px 0 4px}
