@@ -31,13 +31,13 @@ function validateTeamNames(names){if(!Array.isArray(names)||names.length!==2)thr
 const canTarget=(r,actor,p,ally)=>ally?teamOf(r,actor)===teamOf(r,p):teamOf(r,actor)!==teamOf(r,p);
 const send=(ws,o)=>{if(ws&&ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify(o))};
 function log(r,s){r.log.push(s);if(r.log.length>70)r.log.shift()}
-function view(r,p){return {type:'state',room:r.code,phase:r.phase,mode:r.mode,host:r.host,me:p.id,players:r.players.map(x=>({id:x.id,name:x.name,bot:x.bot,online:x.bot||!!x.ws&&x.ws.readyState===WebSocket.OPEN,team:teamOf(r,x),score:x.score,dice:x.dice,guard:x.guard,handCount:x.hand.length,acted:x.acted,ready:x.ready,roundReady:x.roundReady,color:x.color,background:x.background})),teamScores:r.teamScores,teamNames:r.teamNames,teamsDrawn:!!r.teamsDrawn,teamDrawCount:r.teamDrawCount||0,hand:p.hand,round:r.round,turn:r.phase==='playing'?r.players[r.order[r.turn]]?.id:null,order:r.order.map(i=>r.players[i].id),pile:r.deck.length,discard:r.discard.length,stake:r.stake,log:r.log.slice(-18),winner:r.winner,final:r.final,revealUntil:r.revealUntil,limitedUsed:r.limitedUsed,revealWinners:r.revealWinners,roundResult:r.roundResult,nextRoundAt:r.nextRoundAt};}
+function view(r,p){return {type:'state',room:r.code,phase:r.phase,mode:r.mode,host:r.host,me:p.id,players:r.players.map(x=>({id:x.id,name:x.name,bot:x.bot,online:x.bot||!!x.ws&&x.ws.readyState===WebSocket.OPEN,team:teamOf(r,x),score:x.score,dice:x.dice,guard:x.guard,handCount:x.hand.length,acted:x.acted,ready:x.ready,roundReady:x.roundReady,color:x.color,background:x.background})),teamScores:r.teamScores,teamNames:r.teamNames,teamsDrawn:!!r.teamsDrawn,teamDrawCount:r.teamDrawCount||0,hand:p.hand,round:r.round,turn:r.phase==='playing'?r.players[r.order[r.turn]]?.id:null,order:r.order.map(i=>r.players[i].id),pile:r.deck.length,discard:r.discard.length,stake:r.stake,log:r.log.slice(-18),winner:r.winner,final:r.final,revealUntil:r.revealUntil,limitedUsed:r.limitedUsed,revealWinners:r.revealWinners,roundResult:r.roundResult,actionEvent:r.actionEvent||null,statistics:r.phase==='over'?r.players.map(x=>({id:x.id,name:x.name,team:teamOf(r,x),cardsPlayed:x.cardsPlayed||0,roundWins:x.roundWins||0,bestCombination:x.bestCombination||0})):null,nextRoundAt:r.nextRoundAt};}
 function broadcast(r){for(const p of r.players)if(!p.bot)send(p.ws,view(r,p))}
 function deck(){return shuffle(Object.entries(defs).flatMap(([k,v])=>Array(v.count).fill(k)))}
 function refill(r,p){while(p.hand.length<3){if(!r.deck.length){r.deck=shuffle(r.discard.splice(0));if(!r.deck.length)break}p.hand.push(r.deck.pop())}}
 function orderFor(r){if(r.final){if(r.mode==='2v2'){const left=shuffle([0,1]),right=shuffle([2,3]);return random(2)?[left[0],right[0],left[1],right[1]]:[right[0],left[0],right[1],left[1]]}return shuffle(r.players.map((_,i)=>i))}const base=r.mode==='2v2'?[0,2,1,3]:r.players.map((_,i)=>i);const offset=(r.startOffset+r.round-1)%base.length;return [...base.slice(offset),...base.slice(0,offset)]}
 function startRound(r){if(r.final){r.deck=deck();r.discard=[];r.players.forEach(p=>{p.hand=[];refill(r,p)});log(r,'⚔️ Manche décisive : nouveaux dés, nouvelles cartes et nouvel ordre tiré au sort !')}r.round++;r.phase='playing';r.order=orderFor(r);r.turn=0;r.revealUntil=null;r.revealWinners=[];r.roundResult='';r.nextRoundAt=null;r.limitedUsed={};r.players.forEach(p=>{p.dice=[roll(),roll(),roll()];p.guard=false;p.acted=false;p.roundReady=false});log(r,`Manche ${r.round} : ${r.players[r.order[0]].name} commence.`);broadcast(r);scheduleBot(r)}
-function restart(r){r.round=0;r.nextRoundAt=null;r.winner=null;r.final=false;r.teamScores=[0,0];r.log=[];r.deck=deck();r.discard=[];r.startOffset=random(r.players.length);r.players.forEach(p=>{p.score=0;p.hand=[];p.ready=false;p.roundReady=false;refill(r,p)});log(r,'Nouvelle partie : premier joueur désigné au hasard.');startRound(r)}
+function restart(r){r.actionEvent=null;r.actionSerial=0;r.round=0;r.nextRoundAt=null;r.winner=null;r.final=false;r.teamScores=[0,0];r.log=[];r.deck=deck();r.discard=[];r.startOffset=random(r.players.length);r.players.forEach(p=>{p.score=0;p.cardsPlayed=0;p.roundWins=0;p.bestCombination=0;p.hand=[];p.ready=false;p.roundReady=false;refill(r,p)});log(r,'Nouvelle partie : premier joueur désigné au hasard.');startRound(r)}
 function compareEntities(r){if(r.mode==='2v2'){return [0,1].map(t=>({id:t,rank:r.players.filter(p=>teamOf(r,p)===t).map(p=>rank(p.dice)).sort((a,b)=>cmp(b,a))[0]}))}return r.players.map(p=>({id:p.id,rank:rank(p.dice)}))}
 function finishRound(r){
  if(r.phase!=='revealing')return;
@@ -46,6 +46,7 @@ function finishRound(r){
  const winners=entities.filter(x=>cmp(x.rank,best)===0).map(x=>x.id);
  r.revealWinners=winners;
  const decisive=r.final;
+ r.players.forEach(p=>{p.bestCombination=Math.max(p.bestCombination||0,rank(p.dice)[0]);if((r.mode==='2v2'?winners.includes(teamOf(r,p)):winners.includes(p.id)))p.roundWins=(p.roundWins||0)+1});
  // Dans une mort subite, une égalité relance intégralement la manche.
  const noCrown=decisive&&winners.length!==1;
  if(noCrown){r.roundResult='⚔️ Égalité en manche décisive ! Nouveau tirage pour départager les joueurs.'}
@@ -102,7 +103,7 @@ function act(r,p,msg){if(r.phase!=='playing'||r.players[r.order[r.turn]]!==p||p.
  if(k==='crane')a[own]=Math.max(1,a[own]-2);if(k==='malediction')a[own]=roll();
  if(exchange){const mine=p.dice;[mine[own],a[other]]=[a[other],mine[own]]}
  if(limited.has(k)){const scope=r.mode==='2v2'?String(teamOf(r,p)):'table';r.limitedUsed[scope]??=[];r.limitedUsed[scope].push(k)}
- p.hand.splice(idx,1);r.discard.push(k);p.acted=true;log(r,`${p.name} joue ${defs[k].name}${target!==p?' sur '+target.name:''}.`);advance(r)
+ p.hand.splice(idx,1);p.cardsPlayed=(p.cardsPlayed||0)+1;r.actionEvent={id:++r.actionSerial,playerId:p.id,targetId:target?.id||p.id,card:k,cardName:defs[k].name,playerName:p.name};r.discard.push(k);p.acted=true;log(r,`${p.name} joue ${defs[k].name}${target!==p?' sur '+target.name:''}.`);advance(r)
 }
 function startIfReady(r){if(r.phase==='over'&&r.players.every(p=>p.ready&&(p.bot||p.ws?.readyState===WebSocket.OPEN)))restart(r);else broadcast(r)}
 function botMoves(r,p){const allies=r.players.filter(x=>canTarget(r,p,x,true));const enemies=r.players.filter(x=>canTarget(r,p,x,false));const moves=[{kind:'pass'}];for(let i=0;i<p.hand.length;i++){const k=p.hand[i],scope=r.mode==='2v2'?String(teamOf(r,p)):'table';if(limited.has(k)&&r.limitedUsed[scope]?.includes(k))continue;const add=o=>moves.push({kind:'card',cardIndex:i,...o});
