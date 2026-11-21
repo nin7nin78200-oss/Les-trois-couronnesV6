@@ -1,0 +1,16 @@
+{
+  "name": "les-trois-couronnes-online",
+  "version": "3.9.1",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test-server.js && node test-multitable.js && node test-extension40.js && node test-magie33.js && node test-survie.js && node test-survie-bots.js && node test-v35.js && node test-extensions-v36.js && node test-extension-games-v36.js && node test-survie-equipes.js && node test-survie-2v2v2v2.js && node test-survie-unifiee.js && node test-v39-cards.js && node test-v391-last-fixes.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ws": "^8.18.0",
+    "pg": "^8.13.1"
+  }
+}
