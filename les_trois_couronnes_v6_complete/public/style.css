@@ -80,3 +80,35 @@ header #sound{margin:8px 5px 0;padding:9px 12px;font-size:12px}
 .victory-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}
 .victory-actions button{flex:1 1 190px;max-width:280px;min-width:0!important}
 #return-lobby-hint{margin:8px 0 4px}
+
+/* Tirage au sort des équipes dans le salon */
+.team-draw{margin-top:14px;padding-top:12px;border-top:1px solid #63766b}
+.team-draw .muted{margin:7px 0;font-size:13px}
+.team-preview{margin-top:10px;display:grid;gap:7px}
+.team-preview-line{margin:0;padding:10px 12px;background:rgba(8,24,20,.55);border:1px solid #4c655a;border-radius:8px;font-size:14px}
+
+/* V6.3.8 — effets visuels légers (respect du mouvement réduit). */
+.player{position:relative}
+.earned-crown{position:absolute;z-index:15;top:45px;left:50%;transform:translateX(-50%);color:#ffe38d;text-shadow:0 0 12px #f3c45e;font-size:25px;font-weight:800;pointer-events:none;white-space:nowrap;animation:crownRise 1.2s ease-out forwards}
+@keyframes crownRise{0%{opacity:0;transform:translate(-50%,24px) scale(.6)}18%{opacity:1;transform:translate(-50%,0) scale(1.18)}70%{opacity:1}100%{opacity:0;transform:translate(-50%,-38px) scale(.7)}}
+.card-effect{position:absolute;z-index:12;right:10px;top:8px;padding:5px 10px;border:1px solid #e7cc8c;border-radius:10px;background:#1c3028f2;color:#f5df9e;font:700 12px Georgia,serif;box-shadow:0 0 16px #eccf8244;pointer-events:none;animation:cardFlash 1.05s ease-out forwards}
+@keyframes cardFlash{0%{opacity:0;transform:translateY(15px) scale(.85)}18%{opacity:1;transform:translateY(0) scale(1.05)}70%{opacity:1}100%{opacity:0;transform:translateY(-15px)}}
+.card.selected{animation:cardSelect .22s ease-out}
+@keyframes cardSelect{from{transform:translateY(6px) scale(.97)}to{transform:translateY(-2px) scale(1)}}
+.combo-triple .dice{filter:drop-shadow(0 0 8px #ecc56e99)}
+.combo-straight .dice{filter:drop-shadow(0 0 7px #9bdbf399)}
+.combo-triple .die{box-shadow:0 0 0 1px #f0cb7d99,0 0 13px #e7b94a55}
+.combo-straight .die{box-shadow:0 0 0 1px #9bdbf399,0 0 11px #80c3f344}
+.effect-icon{display:inline-block;border-radius:6px;padding:2px 7px;font-size:11px;font-weight:700}
+.effect-shield{color:#dcf5fe;background:#234d5c;border:1px solid #77bbd2}
+.final-intro{position:fixed;inset:0;z-index:1200;display:grid;place-items:center;background:#090c0bc7;backdrop-filter:blur(4px);pointer-events:none}
+.final-intro[hidden]{display:none}
+.final-intro-text{text-align:center;font:bold clamp(30px,6vw,65px) Georgia,serif;letter-spacing:2px;color:#f4c86a;text-shadow:0 0 22px #e4a73a9c}
+.final-intro-text small{display:block;font:600 clamp(14px,3vw,22px) Georgia,serif;color:#f7ecd0;letter-spacing:0;margin-top:15px}
+.final-intro-active .final-intro-text{animation:finalArrival 1.65s ease-in-out both}
+@keyframes finalArrival{0%{opacity:0;transform:scale(.75)}20%{opacity:1;transform:scale(1.08)}75%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.07)}}
+.victory-stats{text-align:left;margin:10px 0 12px;border-top:1px solid #667957;border-bottom:1px solid #667957;padding:10px 0}
+.victory-stats h4{margin:0 0 8px;color:#e9cc8a;text-align:center;font:700 16px Georgia,serif}
+.stat-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:3px 12px;padding:5px 4px;font-size:12px;border-bottom:1px solid #47615366}
+.stat-row:last-child{border-bottom:0}.stat-row strong{color:#f7df9d}.stat-row span{color:#e6e5d4}
+@media(prefers-reduced-motion:reduce){.earned-crown,.card-effect,.card.selected,.final-intro-active .final-intro-text{animation:none}.final-intro[hidden]{display:none}}
