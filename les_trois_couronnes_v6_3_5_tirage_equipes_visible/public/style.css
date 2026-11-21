@@ -1,0 +1,136 @@
+:root{color-scheme:dark;--gold:#e8c879;--cream:#f5ebd5;--muted:#b6b8ae;--green:#17382e;--border:#78633e}*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#2b4b3e,#10251e 60%,#08140f);color:var(--cream);font:15px/1.55 system-ui,Arial,sans-serif;min-height:100vh}main{max-width:1020px;margin:0 auto;padding:20px 14px 60px}header{text-align:center;padding:15px 0}header h1{color:var(--gold);font:700 clamp(28px,5vw,46px) Georgia,serif;margin:8px}header p,.muted{color:var(--muted)}.eyebrow{color:#c6b78c;font-size:12px;letter-spacing:2px}.panel{background:linear-gradient(145deg,#233c31,#14271e);border:1px solid var(--border);border-radius:15px;padding:19px;margin:14px 0;box-shadow:0 5px 25px #0004}h2{font:24px Georgia,serif;color:var(--gold);margin:0 0 14px}h3{margin:0}input,select{font:inherit;color:white;background:#102219;border:1px solid #7a745b;border-radius:8px;padding:11px;max-width:100%}label{display:block;margin:10px 0}label input{display:block;margin-top:6px}button{cursor:pointer;background:#806039;border:1px solid #dab876;color:white;font-weight:700;border-radius:9px;padding:12px 16px;font-size:14px}button:hover:not(:disabled){background:#9b7646}button:disabled{opacity:.48;cursor:default}.secondary{background:#24473a;border-color:#638674}.buttons{display:flex;flex-wrap:wrap;gap:10px;margin-top:17px}.share{display:flex;gap:8px}.share input{flex:1;min-width:0}.player{padding:13px;border-radius:11px;border:1px solid #6f6953;background:#19352b;margin:9px 0}.player.me{border-color:var(--gold)}.player.active{box-shadow:0 0 0 2px #b9a064}.player-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}.player-head strong{font-size:18px}.dice{display:flex;gap:10px;margin:14px 0 8px}.die{height:62px;width:62px;display:grid;place-items:center;background:#f9f2dc;color:#26382c;border-radius:13px;border:3px solid #d6cbaa;font:bold 30px system-ui;box-shadow:0 4px 5px #0005}.tag{font-size:12px;border-radius:24px;background:#365448;color:#e0d4b4;padding:5px 10px}.cards{display:flex;flex-wrap:wrap;gap:9px}.card{width:calc(33.333% - 7px);min-height:145px;display:flex;flex-direction:column;align-items:center;gap:6px;background:#263d31;border-color:#8c764b}.card.selected{outline:3px solid var(--gold);background:#4b4b30}.card .symbol{font-size:27px}.card small{font-weight:400;color:#dfd6c6;font-size:12px;text-align:center}.choices{display:flex;gap:12px;flex-wrap:wrap}.choices select{display:block;min-width:130px;margin-top:5px}.top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}.top strong{color:var(--gold)}#history div{padding:5px 0;border-bottom:1px solid #fff2}#notice:not(:empty){padding:12px;background:#653e2c;border:1px solid #ab7058;border-radius:10px}#members .player{padding:8px 12px}.rules summary{cursor:pointer;color:var(--gold);font-weight:bold}.rules li{margin-bottom:5px}footer{text-align:center;font-size:12px;color:#a3aaa2;margin-top:24px}[hidden]{display:none!important}@media(max-width:600px){.card{width:calc(50% - 5px);min-height:128px}.die{width:55px;height:55px}.top{font-size:13px}.share button{padding:8px}}
+
+.reveal{text-align:center;border:2px solid var(--gold);background:linear-gradient(145deg,#3c3d26,#1b3025);animation:revealPop .35s ease-out}.reveal h2{margin:0 0 4px}.reveal strong{color:var(--gold);font:700 28px Georgia,serif}#rematch-panel{border:2px solid var(--gold)}#rematch-members{margin:12px 0}#rematch-members .player{padding:9px 14px}@keyframes revealPop{from{transform:scale(.98);opacity:.6}to{transform:scale(1);opacity:1}}
+
+header #home{display:inline-block;margin-top:12px}header #home[hidden]{display:none}
+
+.die.rolling{animation:diceRoll .18s linear infinite;transform-origin:center;will-change:transform}
+@keyframes diceRoll{0%{transform:rotate(-12deg) translateY(0)}33%{transform:rotate(95deg) translateY(-9px)}66%{transform:rotate(210deg) translateY(-4px)}100%{transform:rotate(348deg) translateY(0)}}
+header #sound{margin:8px 5px 0;padding:9px 12px;font-size:12px}
+@media(prefers-reduced-motion:reduce){.die.rolling{animation:none;outline:3px solid var(--gold)}}
+.team-blue{border-left:5px solid #5894d4}.team-red{border-left:5px solid #d87979}.team-pill{font-size:12px;color:#cbd5dd}.player.bot{border-style:dashed}.card.blocked{opacity:.5}.status-line{margin:6px 0}.ready-mark{color:#9fdea4}.badge-small{font-size:12px;background:#385248;border-radius:12px;padding:3px 8px}.panel h3{margin:7px 0}.help-line{font-size:12px;color:var(--muted)}
+
+/* Chaque joueur possède une couleur de dés constante pendant la partie. */
+.die[data-seat="0"]{background:#bfe3ff;border-color:#5c9bd3;color:#153650}
+.die[data-seat="1"]{background:#ffd5a5;border-color:#d99147;color:#593012}
+.die[data-seat="2"]{background:#c8f1cd;border-color:#61ac75;color:#19482b}
+.die[data-seat="3"]{background:#ebd0fb;border-color:#a777c9;color:#492463}
+
+/* V6 — dispositions compactes et personnalisations sans images externes */
+#boards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:stretch}
+#boards .player{margin:0;min-width:0;overflow:hidden}
+#boards.mode-1v1{grid-template-columns:repeat(2,minmax(0,1fr))}
+#boards.mode-1v1v1 .player:last-child{grid-column:1/-1;max-width:calc(50% - 6px);width:100%;justify-self:center}
+.player-head{align-items:flex-start}
+.player-head .identity{min-width:0;overflow-wrap:anywhere}
+.crowns{display:inline-flex;gap:3px;white-space:nowrap;font-size:22px;letter-spacing:1px}
+.crown-empty{color:#89908e;opacity:.55;filter:grayscale(1)}
+.crown-full{color:#f4c85c;text-shadow:0 0 9px #e9ac3c66}
+.team-crowns{margin-left:5px}
+.player .tag{display:inline-flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.dice{display:flex;flex-wrap:nowrap;gap:clamp(4px,1.4vw,12px);justify-content:flex-start;align-items:center}
+.die{flex:0 1 62px;min-width:0;aspect-ratio:1/1;width:clamp(36px,5.7vw,62px);height:auto;max-width:62px;border-radius:11px;font-size:clamp(19px,2.8vw,30px)}
+.custom-panel{padding:15px;margin:15px 0;border:1px solid #63766b;border-radius:13px;background:#162d25}
+.custom-panel h3{color:var(--gold)}
+.custom-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.custom-grid input[type=color]{width:100%;max-width:140px;min-height:48px;padding:4px;cursor:pointer}
+.custom-grid select{width:100%}
+.custom-preview{background:#344d63;border-radius:10px;border:1px solid #7b8896;padding:14px;margin:12px 0;min-height:125px}
+.custom-preview .preview-head{display:flex;align-items:center;justify-content:space-between;color:#fff;font-weight:700}
+.custom-preview .preview-dice{margin-bottom:2px}
+.player.bg-uni,.custom-preview.bg-uni{background:linear-gradient(145deg,#233c31,#14271e)}
+.player.bg-arcade,.custom-preview.bg-arcade{background:repeating-linear-gradient(0deg,transparent 0px,transparent 13px,rgba(85,205,235,.13) 14px,transparent 15px),linear-gradient(135deg,#202044,#111327)}
+.player.bg-bois,.custom-preview.bg-bois{background:repeating-linear-gradient(4deg,transparent 0px,transparent 10px,rgba(255,220,160,.07) 11px,transparent 13px),linear-gradient(120deg,#69452e,#3b291d)}
+.player.bg-metal,.custom-preview.bg-metal{background:repeating-linear-gradient(0deg,rgba(255,255,255,.06) 0px,transparent 1px,transparent 5px),linear-gradient(120deg,#555c66,#252c34)}
+.player.bg-magic,.custom-preview.bg-magic{background:radial-gradient(circle at 70% 30%,rgba(180,105,245,.35),transparent 60%),linear-gradient(130deg,#38244e,#151326)}
+.player.bg-damier,.custom-preview.bg-damier{background:conic-gradient(#394459 25%,#232d40 0 50%,#394459 0 75%,#232d40 0) 0 0 / 28px 28px}
+.player.active{box-shadow:inset 0 0 0 2px #d8ba72,0 0 12px #e8c87955}
+@media(max-width:600px){#boards{grid-template-columns:1fr}#boards.mode-1v1v1 .player:last-child{grid-column:auto;max-width:unset}.die{width:clamp(42px,15vw,62px);font-size:26px}.custom-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:390px){.custom-grid{grid-template-columns:1fr}}
+
+/* V6.2 — Tour visible, meilleurs dés et noms d’équipes. */
+.turn-banner{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;text-align:center;margin:12px 0;padding:13px 15px;border-radius:13px;border:1px solid #537d6d;background:linear-gradient(110deg,#1d4134,#183026);box-shadow:0 3px 14px #0003}
+.turn-banner strong{font:700 clamp(18px,3.1vw,25px) Georgia,serif;color:#e9e7d4}
+.turn-banner span{font-size:12px;color:#b7c5b9}
+.turn-banner.banner-active{border-color:#6f9e83}
+.turn-banner.banner-result{background:linear-gradient(110deg,#4b3f20,#293320);border-color:#e4b95b;box-shadow:0 0 14px #e8c87944}
+.turn-banner.banner-result strong{color:#ffe09a}
+.turn-banner.banner-wait{opacity:.9}
+#boards .player.strongest{border:2px solid #edc667;box-shadow:0 0 0 1px #edc66788,0 0 17px #e7b84a66;position:relative}
+#boards .player.active.strongest{box-shadow:inset 0 0 0 2px #90c4b6,0 0 0 1px #edc66788,0 0 17px #e7b84a66}
+#boards .player.team-leading:not(.strongest){border-color:#bba36a}
+.leader-mark{display:inline-flex;padding:3px 9px;border:1px solid #d7ac51;border-radius:16px;background:#513e20e8;font-size:12px;font-weight:700;color:#ffe4a6}
+.team-name-panel{border:1px solid #63766b;border-radius:10px;padding:12px;margin:12px 0;background:#132b23}
+.team-name-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.team-name-grid input{width:100%}
+@media(max-width:480px){.team-name-grid{grid-template-columns:1fr}.leader-mark{font-size:11px}}
+
+/* V6.3 — écran de victoire centré avec fond assombri et flouté. */
+.victory-overlay{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(10,14,13,.68);backdrop-filter:blur(7px) grayscale(.6);-webkit-backdrop-filter:blur(7px) grayscale(.6);overflow-y:auto}
+.victory-modal{width:min(100%,530px);max-height:min(92vh,780px);overflow-y:auto;text-align:center;padding:clamp(22px,5vw,35px);border:2px solid #e1b65e;border-radius:18px;background:linear-gradient(145deg,#294439,#14291f);box-shadow:0 18px 80px #000b,0 0 35px #dfb75533;animation:victoryAppear .32s ease-out}
+.victory-symbol{font-size:47px;line-height:1.3}.victory-modal h2{font:700 clamp(30px,5vw,40px) Georgia,serif;color:#f4d07a;margin:5px 0}.victory-modal h3{font:700 clamp(18px,3.5vw,25px)/1.35 Georgia,serif;color:#f4edce;overflow-wrap:anywhere;margin:12px 0}.victory-crowns{color:#f4d07a;font-size:30px;letter-spacing:10px;text-shadow:0 0 12px #e3b45366}.victory-invite{font-weight:700;margin:12px 0}.victory-modal #rematch{min-width:min(100%,260px);font-size:16px}.victory-modal #rematch-status{color:#f1d78e;font-weight:bold}.victory-modal #rematch-members{margin:12px 0;text-align:left;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.victory-modal .status-line{background:#142a22;border:1px solid #476455;border-radius:8px;padding:7px;margin:0;overflow-wrap:anywhere;font-size:13px}.victory-modal .muted{font-size:12px}
+@keyframes victoryAppear{from{opacity:0;transform:translateY(12px) scale(.94)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(max-width:440px){.victory-modal #rematch-members{grid-template-columns:1fr}.victory-modal{padding:20px}}
+@media(prefers-reduced-motion:reduce){.victory-modal{animation:none}}
+
+/* V6.3.1 : couronnes réelles et actions de la fenêtre finale */
+.victory-crowns{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:5px 13px;letter-spacing:normal;margin:10px 0 2px}
+.victory-crowns span{display:inline-block;font-size:30px;line-height:1.1}
+.victory-score{font-size:14px;font-weight:700;color:#f4d07a;margin:0 0 12px}
+.victory-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}
+.victory-actions button{flex:1 1 190px;max-width:280px;min-width:0!important}
+#return-lobby-hint{margin:8px 0 4px}
+
+/* Tirage au sort des équipes dans le salon */
+.team-draw{margin-top:14px;padding-top:12px;border-top:1px solid #63766b}
+.team-draw .muted{margin:7px 0;font-size:13px}
+.team-preview{margin-top:10px;display:grid;gap:7px}
+.team-preview-line{margin:0;padding:10px 12px;background:rgba(8,24,20,.55);border:1px solid #4c655a;border-radius:8px;font-size:14px}
+
+/* V6.3.8 — effets visuels légers (respect du mouvement réduit). */
+.player{position:relative}
+.earned-crown{position:absolute;z-index:15;top:45px;left:50%;transform:translateX(-50%);color:#ffe38d;text-shadow:0 0 12px #f3c45e;font-size:25px;font-weight:800;pointer-events:none;white-space:nowrap;animation:crownRise 1.2s ease-out forwards}
+@keyframes crownRise{0%{opacity:0;transform:translate(-50%,24px) scale(.6)}18%{opacity:1;transform:translate(-50%,0) scale(1.18)}70%{opacity:1}100%{opacity:0;transform:translate(-50%,-38px) scale(.7)}}
+.card-effect{position:absolute;z-index:12;right:10px;top:8px;padding:5px 10px;border:1px solid #e7cc8c;border-radius:10px;background:#1c3028f2;color:#f5df9e;font:700 12px Georgia,serif;box-shadow:0 0 16px #eccf8244;pointer-events:none;animation:cardFlash 1.05s ease-out forwards}
+@keyframes cardFlash{0%{opacity:0;transform:translateY(15px) scale(.85)}18%{opacity:1;transform:translateY(0) scale(1.05)}70%{opacity:1}100%{opacity:0;transform:translateY(-15px)}}
+.card.selected{animation:cardSelect .22s ease-out}
+@keyframes cardSelect{from{transform:translateY(6px) scale(.97)}to{transform:translateY(-2px) scale(1)}}
+.combo-triple .dice{filter:drop-shadow(0 0 8px #ecc56e99)}
+.combo-straight .dice{filter:drop-shadow(0 0 7px #9bdbf399)}
+.combo-triple .die{box-shadow:0 0 0 1px #f0cb7d99,0 0 13px #e7b94a55}
+.combo-straight .die{box-shadow:0 0 0 1px #9bdbf399,0 0 11px #80c3f344}
+.effect-icon{display:inline-block;border-radius:6px;padding:2px 7px;font-size:11px;font-weight:700}
+.effect-shield{color:#dcf5fe;background:#234d5c;border:1px solid #77bbd2}
+.final-intro{position:fixed;inset:0;z-index:1200;display:grid;place-items:center;background:#090c0bc7;backdrop-filter:blur(4px);pointer-events:none}
+.final-intro[hidden]{display:none}
+.final-intro-text{text-align:center;font:bold clamp(30px,6vw,65px) Georgia,serif;letter-spacing:2px;color:#f4c86a;text-shadow:0 0 22px #e4a73a9c}
+.final-intro-text small{display:block;font:600 clamp(14px,3vw,22px) Georgia,serif;color:#f7ecd0;letter-spacing:0;margin-top:15px}
+.final-intro-active .final-intro-text{animation:finalArrival 1.65s ease-in-out both}
+@keyframes finalArrival{0%{opacity:0;transform:scale(.75)}20%{opacity:1;transform:scale(1.08)}75%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.07)}}
+.victory-stats{text-align:left;margin:10px 0 12px;border-top:1px solid #667957;border-bottom:1px solid #667957;padding:10px 0}
+.victory-stats h4{margin:0 0 8px;color:#e9cc8a;text-align:center;font:700 16px Georgia,serif}
+.stat-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:3px 12px;padding:5px 4px;font-size:12px;border-bottom:1px solid #47615366}
+.stat-row:last-child{border-bottom:0}.stat-row strong{color:#f7df9d}.stat-row span{color:#e6e5d4}
+@media(prefers-reduced-motion:reduce){.earned-crown,.card-effect,.card.selected,.final-intro-active .final-intro-text{animation:none}.final-intro[hidden]{display:none}}
+
+
+/* Version Taverne — création progressive des tables et changements de place. */
+.tavern-header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-top:17px}
+.tavern-header h3{margin:0;color:#f2d58c}
+.tavern-tables{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin:12px 0 18px}
+.tavern-table{background:linear-gradient(145deg,#25493a,#142e24);border:1px solid #617a65;border-radius:13px;padding:14px;min-width:0;display:flex;flex-direction:column;gap:10px}
+.tavern-table.is-current{border:2px solid #e0b55c;box-shadow:0 0 16px #e0b55c2a}
+.tavern-table h4{margin:0;color:#f4d38c}.tavern-table .table-meta{font-size:12px;color:#b2c7b7}
+.tavern-table .table-seats{display:grid;gap:5px;min-height:96px}
+.tavern-table .table-seat{font-size:13px;border:1px solid #536b5d;border-radius:7px;padding:5px 8px;overflow-wrap:anywhere;background:#152d24}
+.tavern-table .table-seat.empty{color:#899f91;border-style:dashed;background:#14291f}
+.tavern-table button{width:100%;margin-top:auto;font-size:13px}
+.tavern-status{border-radius:30px;padding:4px 9px;background:#384e42;color:#d5ead8;font-size:11px;font-weight:600}
+.tavern-table .table-top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+#current-table-title{color:#f2d58c;margin-top:14px}
+.leaderboard-entry,.leaderboard-lobby{margin:15px 0;border:1px solid #536a59;border-radius:10px;padding:11px 14px;background:#192e25}
+.leaderboard-entry summary,.leaderboard-lobby summary{cursor:pointer;color:#f3d28a;font-weight:bold}
+.scoreboard{width:100%;border-collapse:collapse;margin-top:10px}.scoreboard td,.scoreboard th{padding:8px 5px;text-align:left;border-bottom:1px solid #4d6555;font-size:13px}.scoreboard td:last-child,.scoreboard th:last-child{text-align:right}
+.victory-table-switch{border-top:1px solid #5d705d;padding-top:12px;margin-top:14px;display:flex;gap:8px;align-items:end;justify-content:center;flex-wrap:wrap}
+.victory-table-switch label{flex:1 1 180px;text-align:left}.victory-table-switch button{flex:1 1 160px}
+@media(max-width:570px){.tavern-tables{grid-template-columns:1fr}}
