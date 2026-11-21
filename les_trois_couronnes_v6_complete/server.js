@@ -12,11 +12,11 @@ function shuffle(a){for(let i=a.length-1;i>0;i--){const j=random(i+1);[a[i],a[j]
 function rank(a){if(a.length!==3)return [0,0,0];const d=[...a].sort((x,y)=>x-y);if(d[0]===d[2])return [4,d[0],0];if(d[0]+1===d[1]&&d[1]+1===d[2])return [3,d[2],0];if(d[0]===d[1])return [2,d[0],d[2]];if(d[1]===d[2])return [2,d[1],d[0]];return [1,d.reduce((x,y)=>x+y,0),0]}
 function cmp(a,b){for(let i=0;i<3;i++)if(a[i]!==b[i])return a[i]-b[i];return 0}
 const teamOf=(r,p)=>r.mode==='2v2'?(r.players.indexOf(p)<2?0:1):r.players.indexOf(p);
-const teamName=t=>t===0?'Bleue':'Rouge';
+const teamName=(r,t)=>r.teamNames?.[t]||(t===0?'Équipe bleue':'Équipe rouge');
 const canTarget=(r,actor,p,ally)=>ally?teamOf(r,actor)===teamOf(r,p):teamOf(r,actor)!==teamOf(r,p);
 const send=(ws,o)=>{if(ws&&ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify(o))};
 function log(r,s){r.log.push(s);if(r.log.length>70)r.log.shift()}
-function view(r,p){return {type:'state',room:r.code,phase:r.phase,mode:r.mode,host:r.host,me:p.id,players:r.players.map(x=>({id:x.id,name:x.name,bot:x.bot,online:x.bot||!!x.ws&&x.ws.readyState===WebSocket.OPEN,team:teamOf(r,x),score:x.score,dice:x.dice,guard:x.guard,handCount:x.hand.length,acted:x.acted,ready:x.ready,roundReady:x.roundReady,color:x.color,background:x.background})),teamScores:r.teamScores,hand:p.hand,round:r.round,turn:r.phase==='playing'?r.players[r.order[r.turn]]?.id:null,order:r.order.map(i=>r.players[i].id),pile:r.deck.length,discard:r.discard.length,stake:r.stake,log:r.log.slice(-18),winner:r.winner,final:r.final,revealUntil:r.revealUntil,limitedUsed:r.limitedUsed,revealWinners:r.revealWinners,roundResult:r.roundResult,nextRoundAt:r.nextRoundAt};}
+function view(r,p){return {type:'state',room:r.code,phase:r.phase,mode:r.mode,host:r.host,me:p.id,players:r.players.map(x=>({id:x.id,name:x.name,bot:x.bot,online:x.bot||!!x.ws&&x.ws.readyState===WebSocket.OPEN,team:teamOf(r,x),score:x.score,dice:x.dice,guard:x.guard,handCount:x.hand.length,acted:x.acted,ready:x.ready,roundReady:x.roundReady,color:x.color,background:x.background})),teamScores:r.teamScores,teamNames:r.teamNames,hand:p.hand,round:r.round,turn:r.phase==='playing'?r.players[r.order[r.turn]]?.id:null,order:r.order.map(i=>r.players[i].id),pile:r.deck.length,discard:r.discard.length,stake:r.stake,log:r.log.slice(-18),winner:r.winner,final:r.final,revealUntil:r.revealUntil,limitedUsed:r.limitedUsed,revealWinners:r.revealWinners,roundResult:r.roundResult,nextRoundAt:r.nextRoundAt};}
 function broadcast(r){for(const p of r.players)if(!p.bot)send(p.ws,view(r,p))}
 function deck(){return shuffle(Object.entries(defs).flatMap(([k,v])=>Array(v.count).fill(k)))}
 function refill(r,p){while(p.hand.length<3){if(!r.deck.length){r.deck=shuffle(r.discard.splice(0));if(!r.deck.length)break}p.hand.push(r.deck.pop())}}
@@ -34,19 +34,20 @@ function finishRound(r){
  if(!tiedFinal){
   if(r.mode==='2v2'){
    winners.forEach(t=>r.teamScores[t]++);
-   r.roundResult=winners.length===1?`L'équipe ${teamName(winners[0])} remporte la manche !`:'Égalité : les deux équipes obtiennent une couronne.';
+   r.roundResult=winners.length===1?`${teamName(r,winners[0])} a remporté une couronne !`:`${teamName(r,0)} et ${teamName(r,1)} ont remporté une couronne chacun !`;
   }else{
    winners.forEach(id=>r.players.find(p=>p.id===id).score++);
-   r.roundResult=winners.length===1?`${r.players.find(p=>p.id===winners[0]).name} remporte la manche !`:'Égalité : les joueurs concernés obtiennent chacun une couronne.';
+   const names=winners.map(id=>r.players.find(p=>p.id===id).name);
+   r.roundResult=names.length===1?`${names[0]} a remporté une couronne !`:`${names.slice(0,-1).join(', ')} et ${names.at(-1)} ont remporté une couronne chacun !`;
   }
- }else r.roundResult='Égalité en manche décisive : aucun point attribué.';
+ }else r.roundResult='Égalité en manche décisive : aucune couronne attribuée.';
  log(r,r.roundResult);
  const scores=r.mode==='2v2'?r.teamScores:r.players.map(p=>p.score);
  const high=Math.max(...scores),leaders=scores.map((v,i)=>v===high?i:-1).filter(i=>i>=0);
  const completed=high>=3&&leaders.length===1;
  if(completed){
   r.winner=r.mode==='2v2'?leaders[0]:r.players[leaders[0]].id;
-  log(r,`🏆 ${r.mode==='2v2'?'Équipe '+teamName(r.winner):r.players[leaders[0]].name} a obtenu les Trois Couronnes et gagne ${r.stake*r.players.length} PO fictives.`);
+  log(r,`🏆 ${r.mode==='2v2'?teamName(r,r.winner):r.players[leaders[0]].name} a obtenu les Trois Couronnes et gagne ${r.stake*r.players.length} PO fictives.`);
  }else{
   r.final=high>=3;
   r.players.forEach(p=>refill(r,p));
@@ -97,10 +98,11 @@ function chooseBot(r,p){const moves=botMoves(r,p);let best=moves[0],bestScore=ut
  snapshots.forEach(({x,d,guard})=>{x.dice=d;x.guard=guard});score-=12;if(score>bestScore+0.01){bestScore=score;best=m}}
  return best}
 function scheduleBot(r){if(r.phase!=='playing')return;const p=r.players[r.order[r.turn]];if(!p?.bot)return;setTimeout(()=>{if(r.phase!=='playing'||r.players[r.order[r.turn]]!==p||p.acted)return;let m;try{m=chooseBot(r,p);act(r,p,m)}catch(e){console.error('Bot action:',e);try{act(r,p,{kind:'pass'})}catch{}}},BOT_DELAY_MS)}
-function join(ws,msg){const code=String(msg.room||'').trim().toUpperCase();const id=String(msg.id||'');const name=String(msg.name||'Aventurier').trim().slice(0,24).replace(/[<>]/g,'')||'Aventurier';if(!/^[A-F0-9]{24}$/i.test(id))throw Error('Identifiant de joueur invalide.');if(code&&!/^[A-F0-9]{6}$/.test(code))throw Error('Code du salon invalide.');let r=rooms.get(code);if(!r){if(code)throw Error('Salon introuvable (serveur redémarré ?).');let c;do{c=crypto.randomBytes(3).toString('hex').toUpperCase()}while(rooms.has(c));r={code:c,mode:'1v1',players:[],host:id,phase:'lobby',round:0,turn:0,order:[],startOffset:0,deck:[],discard:[],stake:5,log:[],winner:null,final:false,revealUntil:null,limitedUsed:{},teamScores:[0,0],revealWinners:[],roundResult:''};rooms.set(c,r)}
+function join(ws,msg){const code=String(msg.room||'').trim().toUpperCase();const id=String(msg.id||'');const name=String(msg.name||'Aventurier').trim().slice(0,24).replace(/[<>]/g,'')||'Aventurier';if(!/^[A-F0-9]{24}$/i.test(id))throw Error('Identifiant de joueur invalide.');if(code&&!/^[A-F0-9]{6}$/.test(code))throw Error('Code du salon invalide.');let r=rooms.get(code);if(!r){if(code)throw Error('Salon introuvable (serveur redémarré ?).');let c;do{c=crypto.randomBytes(3).toString('hex').toUpperCase()}while(rooms.has(c));r={code:c,mode:'1v1',players:[],host:id,phase:'lobby',round:0,turn:0,order:[],startOffset:0,deck:[],discard:[],stake:5,log:[],winner:null,final:false,revealUntil:null,limitedUsed:{},teamScores:[0,0],teamNames:['Équipe bleue','Équipe rouge'],revealWinners:[],roundResult:''};rooms.set(c,r)}
  let p=r.players.find(x=>x.id===id);if(!p){if(r.phase!=='lobby')throw Error('Partie déjà commencée : reconnexions uniquement.');if(r.players.length>=modes[r.mode])throw Error('Salon complet pour ce mode.');p={id,name,color:diceColors[r.players.length%4],background:'uni',bot:false,ws:null,score:0,dice:[],guard:false,hand:[],acted:false,ready:false,roundReady:false};r.players.push(p);log(r,`${name} rejoint la table.`)}else{if(p.bot)throw Error('Impossible de rejoindre à la place d’un bot.');p.name=name;if(p.ws&&p.ws!==ws)try{p.ws.close()}catch{}}p.ws=ws;ws.room=r.code;ws.pid=id;broadcast(r)}
 function handle(ws,msg){if(!msg||typeof msg!=='object')return;try{if(msg.type==='join'){join(ws,msg);return}const r=rooms.get(ws.room);if(!r)throw Error('Salon introuvable.');const p=r.players.find(x=>x.id===ws.pid);if(!p||p.ws!==ws||p.bot)throw Error('Connexion invalide.');
  if(msg.type==='customize'){if(r.phase!=='lobby')throw Error('La personnalisation se fait dans le salon avant la partie.');const color=String(msg.color||'').toUpperCase();const bg=String(msg.background||'');if(!/^#[0-9A-F]{6}$/.test(color))throw Error('Couleur invalide.');if(!backgrounds.has(bg))throw Error('Fond invalide.');if(r.players.some(x=>x!==p&&x.color.toUpperCase()===color))throw Error('Cette couleur est déjà utilisée. Choisis-en une autre.');p.color=color;p.background=bg;broadcast(r);return}
+ if(msg.type==='teamNames'){if(r.phase!=='lobby'||p.id!==r.host)throw Error('Seul l’hôte peut modifier les noms des équipes dans le salon.');if(r.mode!=='2v2')throw Error('Les noms d’équipe sont réservés au mode 2v2.');if(!Array.isArray(msg.names)||msg.names.length!==2)throw Error('Noms d’équipes invalides.');const names=msg.names.map((v,i)=>String(v??'').trim().replace(/[<>\x00-\x1f]/g,'').slice(0,24)||(i===0?'Équipe bleue':'Équipe rouge'));if(names[0].toLocaleLowerCase('fr')===names[1].toLocaleLowerCase('fr'))throw Error('Les deux équipes doivent avoir des noms différents.');r.teamNames=names;broadcast(r);return}
  if(msg.type==='mode'){if(r.phase!=='lobby'||p.id!==r.host)throw Error('Action réservée à l’hôte du salon.');if(!modes[msg.mode])throw Error('Mode inconnu.');if(r.players.length>modes[msg.mode])throw Error('Trop de joueurs pour ce mode : retire les bots ou choisis un autre mode.');r.mode=msg.mode;log(r,`Mode sélectionné : ${r.mode}.`);broadcast(r);return}
  if(msg.type==='addBot'){if(r.phase!=='lobby'||r.host!==p.id)throw Error('Seul l’hôte peut ajouter un bot au salon.');if(r.players.length>=modes[r.mode])throw Error('Le salon est complet.');const id='bot-'+crypto.randomBytes(8).toString('hex');const bot={id,name:`Bot ${r.players.filter(x=>x.bot).length+1}`,color:diceColors[r.players.length%4],background:'uni',bot:true,ws:null,score:0,dice:[],guard:false,hand:[],acted:false,ready:true,roundReady:true};r.players.push(bot);log(r,`${bot.name} rejoint le salon.`);broadcast(r);return}
  if(msg.type==='removeBot'){if(r.phase!=='lobby'||r.host!==p.id)throw Error('Action réservée à l’hôte en salon.');const b=r.players.find(x=>x.id===msg.id&&x.bot);if(!b)throw Error('Bot introuvable.');r.players=r.players.filter(x=>x!==b);broadcast(r);return}
