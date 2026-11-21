@@ -293,3 +293,75 @@ header #sound{margin:8px 5px 0;padding:9px 12px;font-size:12px}
 .seat-kick:hover{background:#7e3735!important}
 @media(max-width:750px){#boards.mode-survie{min-height:0;border-radius:16px}#boards.mode-survie::before{display:none}#boards.mode-survie .player{position:relative;width:100%;max-width:none;left:auto!important;top:auto!important;transform:none;min-height:0;padding:11px}#boards.mode-survie .survival-center{position:relative;top:auto;left:auto;transform:none;min-height:0;width:100%}#boards.mode-survie .player .tag{font-size:12px}}
 @media(prefers-reduced-motion:reduce){#boards.mode-survie::before{transition:none}#boards .die.die-target-selected{transform:none}}
+
+
+/* V3.5.1 — salon compact : pas de grosses croix qui rétrécissent les pseudos. */
+.tavern-table .table-seat{display:flex;flex-flow:row nowrap;align-items:center;justify-content:space-between;gap:8px;min-height:33px;min-width:0;padding:5px 8px}
+.tavern-table .table-seat .seat-person{display:block;min-width:0;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;overflow-wrap:normal}
+.tavern-table .table-seat button.seat-kick{display:grid;place-items:center;flex:0 0 28px;width:28px!important;min-width:28px;max-width:28px;height:28px;margin:0;padding:0;border:1px solid #986c66;border-radius:6px;background:#4c2f2c;color:#ffe2dc;font-size:16px;line-height:1}
+.tavern-table .table-seat button.seat-kick:hover:not(:disabled){background:#79413d}
+#remove-bot{display:none!important}
+#members .player{gap:10px;min-width:0}
+
+/* Arène compacte et plateaux identiques : aucune variation de taille selon les badges. */
+@media(min-width:751px){
+ #boards.mode-survie{height:var(--arena-height,620px);min-height:0!important;width:100%;margin:12px auto 20px;border-radius:38%/42%}
+ #boards.mode-survie .player{width:clamp(172px,21%,205px);max-width:205px;height:158px!important;min-height:158px!important;max-height:158px;overflow:hidden;display:grid;grid-template-rows:22px 29px 24px 48px 16px;align-content:center;gap:1px;padding:7px 9px;justify-content:stretch;margin:0}
+ #boards.mode-survie .survival-hearts{margin:0;min-height:0;height:22px;line-height:1;font-size:20px;align-items:center}
+ #boards.mode-survie .player-head{min-width:0;display:flex;flex-wrap:nowrap;align-items:center;gap:4px;overflow:hidden}
+ #boards.mode-survie .player-head .identity{min-width:0;max-width:51%;flex:0 1 auto;font-size:12px;overflow:hidden}
+ #boards.mode-survie .player-head .identity-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+ #boards.mode-survie .player-head .avatar-icon{width:22px;height:22px}
+ #boards.mode-survie .player-head .tag{flex:1 1 auto;min-width:0;max-width:60%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:10px;padding:3px 5px}
+ #boards.mode-survie .board-effects{display:flex;align-items:center;justify-content:center;gap:4px;min-width:0;min-height:24px;height:24px;overflow:hidden}
+ #boards.mode-survie .effect-compact{display:inline-flex;align-items:center;justify-content:center;border:1px solid #698b77;padding:2px 6px;border-radius:14px;font-size:11px;line-height:1.2;white-space:nowrap;background:#193b31}
+ #boards.mode-survie .effect-compact.risk-compact{border-color:#db827a;background:#64322e;color:#ffdad6}
+ #boards.mode-survie .effect-compact.leader-compact{border-color:#d0af5b;background:#594522;color:#fce4a7}
+ #boards.mode-survie .effect-compact.crow-compact{border-color:#b89aca;background:#513a63;color:#ead7f9}
+ #boards.mode-survie .effect-compact.shield-compact{border-color:#78cbdb;background:#1e5460;color:#d9f8fe}
+ #boards.mode-survie .player .dice{height:48px;min-height:48px;flex:none;align-items:center;justify-content:center;gap:5px;margin:0;width:100%}
+ #boards.mode-survie .player .die{width:42px;height:42px;font-size:20px;border-radius:9px}
+ #boards.mode-survie .board-status{height:16px;min-height:16px;font-size:10px;line-height:1;display:flex;justify-content:space-between;align-items:center;gap:4px;flex-wrap:nowrap;overflow:hidden;margin:0}
+ #boards.mode-survie .board-status span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ #boards.mode-survie .survival-center{width:140px;min-height:75px;gap:2px}
+ #boards.mode-survie .survival-emblem{font-size:31px}
+ #boards.mode-survie::before{inset:10%}
+}
+
+/* Version téléphone : la main reste sous le pouce, les cartes glissent horizontalement. */
+@media(max-width:750px){
+ body.hand-docked main{padding-bottom:clamp(206px,37vh,260px)}
+ body.hand-docked #hand-panel{position:fixed;z-index:90;left:0;right:0;bottom:0;margin:0;padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px));border:1px solid #9e844c;border-radius:13px 13px 0 0;background:linear-gradient(160deg,#244536f5,#11251efc);box-shadow:0 -8px 30px #000a;max-height:min(49dvh,320px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+ body.hand-docked #hand-panel h2{font-size:17px;line-height:1.15;margin:0 0 6px;display:flex;gap:6px;align-items:baseline;flex-wrap:wrap}
+ body.hand-docked #hand-panel #pile{font-size:11px}
+ body.hand-docked #hand-panel #limited-hint{display:none}
+ body.hand-docked #hand-panel #cards{display:flex;flex-wrap:nowrap;gap:8px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;touch-action:pan-x;overscroll-behavior-x:contain;padding:5px 3px 10px;scrollbar-width:thin}
+ body.hand-docked #hand-panel #cards .card{flex:0 0 124px;width:124px;min-width:124px;max-width:124px;min-height:104px;max-height:122px;gap:3px;padding:7px 5px;scroll-snap-align:start}
+ body.hand-docked #hand-panel #cards .card .symbol{font-size:25px;line-height:1}
+ body.hand-docked #hand-panel #cards .card strong{font-size:13px;line-height:1.1}
+ body.hand-docked #hand-panel #cards .card small{font-size:10px;line-height:1.15;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+ body.hand-docked #hand-panel #cards .card .card-footer{font-size:9px;padding:2px 0 0}
+ body.hand-docked #hand-panel #direct-target-hint{margin:3px 0 4px;gap:7px;padding:5px 7px;font-size:11px;line-height:1.2}
+ body.hand-docked #hand-panel #direct-target-hint span{flex:1 1 180px;min-width:0}
+ body.hand-docked #hand-panel #clear-targets{padding:5px 8px;font-size:11px}
+ body.hand-docked #hand-panel .buttons{margin-top:6px;display:flex;flex-wrap:nowrap;gap:8px}
+ body.hand-docked #hand-panel .buttons button{flex:1 1 0;min-width:0;padding:9px 6px;font-size:13px}
+ body.hand-docked #hand-panel #target-controls{margin:2px 0;gap:6px}
+ body.hand-docked #hand-panel #target-controls label{margin:0;font-size:11px}
+ body.hand-docked #hand-panel #target-controls select{margin:0;padding:6px;min-width:0}
+ body.hand-docked #hand-panel #info{display:none}
+ #boards.mode-survie .player{height:190px!important;min-height:190px!important;max-height:190px;display:grid;grid-template-rows:24px 32px 24px 58px 18px;align-content:center;gap:3px;overflow:hidden}
+ #boards.mode-survie .player .player-head{min-width:0;flex-wrap:nowrap;overflow:hidden;gap:5px}
+ #boards.mode-survie .player .player-head .identity{min-width:0;max-width:48%;overflow:hidden}
+ #boards.mode-survie .player .player-head .identity-name{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}
+ #boards.mode-survie .player .player-head .tag{min-width:0;max-width:56%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px}
+ #boards.mode-survie .player .dice{height:58px;min-height:58px;flex:none;margin:0;align-items:center}
+ #boards.mode-survie .player .board-status{height:18px;min-height:18px;white-space:nowrap;flex-wrap:nowrap;overflow:hidden;font-size:10px}
+ #boards.mode-survie .player .board-status span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ #boards.mode-survie .player .board-effects{display:flex;align-items:center;justify-content:center;gap:5px;height:24px;min-height:24px;overflow:hidden}
+ #boards.mode-survie .effect-compact{padding:2px 6px;border-radius:14px;font-size:11px;border:1px solid #648b78;background:#234335}
+ #boards.mode-survie .risk-compact{color:#ffdbd3;background:#5d2d2d;border-color:#d67e77}
+ #boards.mode-survie .leader-compact{color:#fce4a7;background:#5b4825;border-color:#c7a44b}
+ #boards.mode-survie .crow-compact{background:#4f365b;border-color:#9d7bb8}
+}
+@media(prefers-reduced-motion:reduce){#boards.mode-survie .player{transition:none}body.hand-docked #hand-panel #cards{scroll-behavior:auto}}
