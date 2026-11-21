@@ -4,12 +4,78 @@ const counts={'1v1':2,'1v1v1':3,'1v1v1v1':4,'2v2':4};let ws=null,state=null,sele
 const prefKey='trois-couronnes-preferences-v1';function getPrefs(){try{return JSON.parse(localStorage.getItem(prefKey)||'{}')||{}}catch{return {}}}function savePrefs(data){try{localStorage.setItem(prefKey,JSON.stringify({...getPrefs(),...data}))}catch{}}const storedPrefs=getPrefs();
 let soundEnabled=storedPrefs.sound!==undefined?!!storedPrefs.sound:localStorage.getItem('diceSound')!=='off';
 function refreshSound(){$('sound').textContent=soundEnabled?'🔊 Son activé':'🔇 Son coupé'}refreshSound();$('sound').onclick=()=>{soundEnabled=!soundEnabled;localStorage.setItem('diceSound',soundEnabled?'on':'off');savePrefs({sound:soundEnabled});refreshSound()};document.addEventListener('pointerdown',()=>{try{audioCtx ||=new (window.AudioContext||window.webkitAudioContext)();audioCtx.resume()}catch{}},{once:true});
-function diceSound(){if(!soundEnabled)return;try{audioCtx ||=new (window.AudioContext||window.webkitAudioContext)();audioCtx.resume();const sr=audioCtx.sampleRate,len=Math.round(sr*.055),buf=audioCtx.createBuffer(1,len,sr),data=buf.getChannelData(0);for(let j=0;j<len;j++)data[j]=(Math.random()*2-1)*(1-j/len)**2;[0,.07,.16,.25,.36,.45].forEach((dt,i)=>{const src=audioCtx.createBufferSource(),filter=audioCtx.createBiquadFilter(),gain=audioCtx.createGain();src.buffer=buf;filter.type='bandpass';filter.frequency.value=900+150*i;filter.Q.value=.7;src.connect(filter);filter.connect(gain);gain.connect(audioCtx.destination);const t=audioCtx.currentTime+dt;gain.gain.setValueAtTime(.0001,t);gain.gain.linearRampToValueAtTime(.12*(1-.1*i),t+.003);gain.gain.exponentialRampToValueAtTime(.0001,t+.055);src.start(t);src.stop(t+.06)})}catch{}}
+// Sons courts et feutrés, générés localement : aucun fichier audio à télécharger.
+// Un seul gestionnaire fonctionne aussi avec les cartes créées dynamiquement.
+let lastUiSoundAt=0;
+function uiSound(kind='button'){
+ if(!soundEnabled)return;
+ const now=performance.now(),gap=kind==='card'?110:85;
+ if(now-lastUiSoundAt<gap)return; // Anti-spam, même pour des clics très rapides.
+ lastUiSoundAt=now;
+ try{
+  audioCtx ||=new (window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==='suspended')audioCtx.resume();
+  const t=audioCtx.currentTime;
+  const osc=audioCtx.createOscillator(),filter=audioCtx.createBiquadFilter(),gain=audioCtx.createGain();
+  const card=kind==='card';
+  osc.type=card?'triangle':'sine';
+  osc.frequency.setValueAtTime(card?690:480,t);
+  osc.frequency.exponentialRampToValueAtTime(card?440:335,t+(card?.085:.055));
+  filter.type='lowpass';filter.frequency.value=card?950:760;
+  gain.gain.setValueAtTime(.0001,t);
+  gain.gain.exponentialRampToValueAtTime(card?.028:.013,t+.008);
+  gain.gain.exponentialRampToValueAtTime(.0001,t+(card?.11:.075));
+  osc.connect(filter);filter.connect(gain);gain.connect(audioCtx.destination);
+  osc.start(t);osc.stop(t+(card?.12:.085));
+ }catch{} // Audio non disponible : le jeu continue normalement.
+}
+// On écoute le clic avant les handlers des boutons, sans bloquer leurs actions.
+document.addEventListener('click',event=>{
+ const button=event.target.closest?.('button');
+ if(!button||button.disabled||button.id==='sound')return;
+ uiSound(button.classList.contains('card')?'card':'button');
+});
+function diceSound(){if(!soundEnabled)return;try{audioCtx ||=new (window.AudioContext||window.webkitAudioContext)();audioCtx.resume();const sr=audioCtx.sampleRate,len=Math.round(sr*.055),buf=audioCtx.createBuffer(1,len,sr),data=buf.getChannelData(0);for(let j=0;j<len;j++)data[j]=(Math.random()*2-1)*(1-j/len)**2;[0,.07,.16,.25,.36,.45].forEach((dt,i)=>{const src=audioCtx.createBufferSource(),filter=audioCtx.createBiquadFilter(),gain=audioCtx.createGain();src.buffer=buf;filter.type='bandpass';filter.frequency.value=900+150*i;filter.Q.value=.7;src.connect(filter);filter.connect(gain);gain.connect(audioCtx.destination);const t=audioCtx.currentTime+dt;gain.gain.setValueAtTime(.0001,t);gain.gain.linearRampToValueAtTime(.075*(1-.1*i),t+.003);gain.gain.exponentialRampToValueAtTime(.0001,t+.055);src.start(t);src.stop(t+.06)})}catch{}}
+// Applaudissements légers à la fin d'une partie : petite foule synthétique, sans fichier MP3.
+// Un seul son à l'entrée dans la phase "over" (pas à chaque mise à jour du salon).
+function victoryApplause(){
+ if(!soundEnabled)return;
+ try{
+  audioCtx ||= new (window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==='suspended')audioCtx.resume();
+  const sr=audioCtx.sampleRate,duration=1.7,length=Math.ceil(sr*duration);
+  const buffer=audioCtx.createBuffer(1,length,sr),samples=buffer.getChannelData(0);
+  // Petites claques irrégulières en plusieurs salves, chacune avec un double impact.
+  // Le volume de sortie est volontairement inférieur à celui des dés.
+  for(let clap=0;clap<31;clap++){
+   const start=.06+clap*.050+Math.random()*.035;
+   const strength=.35+Math.random()*.45;
+   for(const offset of [0,.012]){
+    const begin=Math.floor((start+offset)*sr);
+    const n=Math.floor(sr*(offset===0?.027:.022));
+    for(let j=0;j<n&&begin+j<length;j++){
+     const shape=Math.pow(1-j/n,2.2);
+     samples[begin+j]+=(Math.random()*2-1)*strength*shape*(offset===0?1:.55);
+    }
+   }
+  }
+  const source=audioCtx.createBufferSource(),filter=audioCtx.createBiquadFilter(),gain=audioCtx.createGain();
+  source.buffer=buffer;
+  filter.type='bandpass';filter.frequency.value=1250;filter.Q.value=.55;
+  const t=audioCtx.currentTime;
+  gain.gain.setValueAtTime(.0001,t);
+  gain.gain.linearRampToValueAtTime(.085,t+.16);
+  gain.gain.setValueAtTime(.085,t+1.2);
+  gain.gain.linearRampToValueAtTime(.0001,t+duration);
+  source.connect(filter);filter.connect(gain);gain.connect(audioCtx.destination);
+  source.start(t);source.stop(t+duration+.02);
+ }catch{} // Pas de périphérique audio : la partie reste jouable.
+}
 function animateDice(prev,s){if(!prev||s.phase==='lobby')return;const isNewRound=prev.round!==s.round&&s.phase==='playing';let changed=false;for(const p of s.players){const old=prev.players.find(x=>x.id===p.id),panel=[...document.querySelectorAll('[data-dice-player]')].find(el=>el.dataset.dicePlayer===p.id);p.dice.forEach((v,i)=>{if(!isNewRound&&old?.dice?.[i]===v)return;const el=panel?.querySelectorAll('.die')[i];if(!el)return;changed=true;el.classList.add('rolling');const interval=setInterval(()=>{el.textContent=String(1+Math.floor(Math.random()*6))},65);setTimeout(()=>{clearInterval(interval);el.textContent=String(v);el.classList.remove('rolling')},750)})}if(changed)diceSound()}
 const identityKey='trois-couronnes-id';let id=localStorage.getItem(identityKey);if(!id||!/^[a-f0-9]{24}$/i.test(id)){id=[...crypto.getRandomValues(new Uint8Array(12))].map(x=>x.toString(16).padStart(2,'0')).join('');localStorage.setItem(identityKey,id)}$('name').value=storedPrefs.name||localStorage.getItem('trois-couronnes-name')||'';if(/^#[0-9a-fA-F]{6}$/.test(storedPrefs.color||''))$('dice-color').value=storedPrefs.color;if(['uni','arcade','bois','metal','magic','damier'].includes(storedPrefs.background))$('board-bg').value=storedPrefs.background;
 const requested=new URLSearchParams(location.search).get('salon');if(requested){$('room-info').textContent='Invitation au salon '+requested.toUpperCase();$('join').hidden=false;$('create').hidden=true}
 function notice(x){$('notice').textContent=x||''}function send(o){if(ws?.readyState===1)ws.send(JSON.stringify(o));else notice('Connexion perdue. Reconnexion en cours…')}
-function connect(room){if(connecting)return;const name=$('name').value.trim();if(!name){notice('Entre un pseudo.');return}localStorage.setItem('trois-couronnes-name',name);savePrefs({name});connecting=true;if(ws){const old=ws;ws=null;old.onclose=null;old.close()}const proto=location.protocol==='https:'?'wss':'ws';const socket=new WebSocket(proto+'://'+location.host);ws=socket;socket.onopen=()=>{connecting=false;send({type:'join',room,id,name})};socket.onmessage=e=>{const d=JSON.parse(e.data);if(d.type==='error'){pendingCustom=null;notice(d.message);return}if(d.type==='state'){const prev=state;state=d;notice('');const own=d.players.find(p=>p.id===d.me);if(location.search!=='?salon='+d.room)history.replaceState(null,'','?salon='+d.room);render();animateDice(prev,d);if(d.phase==='lobby'&&prefsSyncedRoom!==d.room){prefsSyncedRoom=d.room;const pref=getPrefs();if(/^#[0-9a-fA-F]{6}$/.test(pref.color||'')&&['uni','arcade','bois','metal','magic','damier'].includes(pref.background||'')){const own=d.players.find(p=>p.id===d.me);if(own&&(own.color.toUpperCase()!==pref.color.toUpperCase()||own.background!==pref.background))send({type:'customize',color:pref.color,background:pref.background})}}}if(d.type==='left')location.assign('/')};socket.onclose=()=>{connecting=false;if(!leaving&&state&&ws===socket){notice('Connexion interrompue : reconnexion automatique…');setTimeout(()=>{if(!leaving&&ws===socket)connect(state.room)},2300)}};socket.onerror=()=>notice('Serveur indisponible. Vérifie le déploiement Render.')}
+function connect(room){if(connecting)return;const name=$('name').value.trim();if(!name){notice('Entre un pseudo.');return}localStorage.setItem('trois-couronnes-name',name);savePrefs({name});connecting=true;if(ws){const old=ws;ws=null;old.onclose=null;old.close()}const proto=location.protocol==='https:'?'wss':'ws';const socket=new WebSocket(proto+'://'+location.host);ws=socket;socket.onopen=()=>{connecting=false;send({type:'join',room,id,name})};socket.onmessage=e=>{const d=JSON.parse(e.data);if(d.type==='error'){pendingCustom=null;notice(d.message);return}if(d.type==='state'){const prev=state;state=d;notice('');const own=d.players.find(p=>p.id===d.me);if(location.search!=='?salon='+d.room)history.replaceState(null,'','?salon='+d.room);render();animateDice(prev,d);if(prev?.phase!=='over'&&d.phase==='over')victoryApplause();if(d.phase==='lobby'&&prefsSyncedRoom!==d.room){prefsSyncedRoom=d.room;const pref=getPrefs();if(/^#[0-9a-fA-F]{6}$/.test(pref.color||'')&&['uni','arcade','bois','metal','magic','damier'].includes(pref.background||'')){const own=d.players.find(p=>p.id===d.me);if(own&&(own.color.toUpperCase()!==pref.color.toUpperCase()||own.background!==pref.background))send({type:'customize',color:pref.color,background:pref.background})}}}if(d.type==='left')location.assign('/')};socket.onclose=()=>{connecting=false;if(!leaving&&state&&ws===socket){notice('Connexion interrompue : reconnexion automatique…');setTimeout(()=>{if(!leaving&&ws===socket)connect(state.room)},2300)}};socket.onerror=()=>notice('Serveur indisponible. Vérifie le déploiement Render.')}
 function home(){if(!state){location.assign('/');return}if(state.phase!=='lobby'&&!confirm('Quitter la partie ? Ta place sera réservée pour une reconnexion, ou l’hôte pourra te remplacer par un bot.'))return;leaving=true;if(state.phase==='lobby'&&ws?.readyState===1){send({type:'leave'});setTimeout(()=>location.assign('/'),300)}else{try{ws?.close()}catch{}location.assign('/')}}
 $('home').onclick=home;$('create').onclick=()=>connect('');$('join').onclick=()=>connect(requested);$('copy').onclick=async()=>{try{await navigator.clipboard.writeText($('link').value);$('copy').textContent='Copié !'}catch{$('link').select();notice('Copie le lien sélectionné.')}};
 $('mode').onchange=()=>send({type:'mode',mode:$('mode').value});$('save-teams').onclick=()=>send({type:'teamNames',names:[$('team-name-0').value,$('team-name-1').value]});$('shuffle-teams').onclick=()=>send({type:'shuffleTeams'});$('add-bot').onclick=()=>send({type:'addBot'});$('remove-bot').onclick=()=>{const bot=state?.players.filter(x=>x.bot).at(-1);if(bot)send({type:'removeBot',id:bot.id})};$('start').onclick=()=>send({type:'start',stake:Number($('stake').value)||0,...(state?.mode==='2v2'?{teamNames:[$('team-name-0').value,$('team-name-1').value]}:{})});$('pass').onclick=()=>send({type:'action',kind:'pass'});$('rematch').onclick=()=>send({type:'rematch'});$('return-lobby').onclick=()=>send({type:'backToLobby'});
