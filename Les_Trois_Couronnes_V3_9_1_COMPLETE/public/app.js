@@ -172,19 +172,45 @@ function marketDropAnimation(ev){
   ghost.animate([{transform:'translate(-50%,-50%) rotate(-12deg)',opacity:.1},{transform:`translate(calc(-50% + ${dx/2}px),calc(-50% + ${dy/2-24}px)) rotate(18deg)`,opacity:1,offset:.45},{transform:`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px)) rotate(360deg) scale(.45)`,opacity:0}],{duration:840+i*40,easing:'ease-in-out',fill:'forwards'}).onfinish=()=>ghost.remove();setTimeout(()=>ghost.remove(),1400);
  }
 }
-function prepareEliminationGhosts(prev,s){
- if(!prev||!isSurvivalMode(s.mode)||!['revealing','over'].includes(s.phase))return [];
- return s.players.filter(person=>person.eliminated&&!prev.players.find(p=>p.id===person.id)?.eliminated).map(person=>{
-  const board=[...document.querySelectorAll('[data-dice-player]')].find(x=>x.dataset.dicePlayer===person.id);
-  if(!board)return null;const rect=board.getBoundingClientRect(),ghost=board.cloneNode(true);
-  ghost.classList.add('elimination-ghost');Object.assign(ghost.style,{position:'fixed',top:rect.top+'px',left:rect.left+'px',width:rect.width+'px',height:rect.height+'px',transform:'none',margin:'0',pointerEvents:'none',zIndex:'190',boxSizing:'border-box'});
-  return ghost;
- }).filter(Boolean)
+// L'ancienne ronde reste à l'écran pendant toute l'animation d'élimination.
+// Ce n'est qu'une fois l'entaille terminée que les survivants se rapprochent.
+function prepareEliminationStage(prev,s){
+ if(!prev||!isSurvivalMode(s.mode)||!['revealing','over'].includes(s.phase))return null;
+ const eliminatedIds=s.players.filter(person=>person.eliminated&&!prev.players.find(p=>p.id===person.id)?.eliminated).map(p=>p.id);
+ if(!eliminatedIds.length)return null;
+ const arena=$('boards');if(!arena||arena.hidden)return null;
+ const rect=arena.getBoundingClientRect();
+ const frozen=arena.cloneNode(true);
+ frozen.classList.add('survival-frozen-board');frozen.setAttribute('aria-hidden','true');
+ // Supprime les identifiants internes du duplicata; le #boards original reste la source de vérité.
+ frozen.querySelectorAll('[id]').forEach(e=>e.removeAttribute('id'));
+ Object.assign(frozen.style,{position:'fixed',left:rect.left+'px',top:rect.top+'px',width:rect.width+'px',height:rect.height+'px',margin:'0',boxSizing:'border-box',pointerEvents:'none',zIndex:'190'});
+ const before=new Map([...arena.querySelectorAll('[data-dice-player]')].map(el=>[el.dataset.dicePlayer,el.getBoundingClientRect()]));
+ // Aucun nouveau placement ne doit être visible avant la fin de l'entaille.
+ arena.style.visibility='hidden';
+ return {arena,frozen,before,eliminatedIds};
 }
-function eliminationSlash(prev,s,ghosts=[]){
- if(!ghosts.length)return;
- ghosts.forEach(ghost=>{document.body.append(ghost);const slash=document.createElement('div');slash.className='elimination-slash';ghost.append(slash);setTimeout(()=>ghost.remove(),1700)});
+function eliminationSlash(stage){
+ if(!stage)return;
+ const {arena,frozen,before,eliminatedIds}=stage;
+ document.body.append(frozen);
+ for(const id of eliminatedIds){
+  const victim=[...frozen.querySelectorAll('[data-dice-player]')].find(e=>e.dataset.dicePlayer===id);
+  if(!victim)continue;
+  const slash=document.createElement('div');slash.className='elimination-slash';victim.append(slash);
+ }
  playCardFxSound('epee');
+ setTimeout(()=>{
+  frozen.remove();arena.style.visibility='';
+  // Les positions finales sont désormais calculées. La ronde ne se contracte qu'ici.
+  if(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)return;
+  for(const player of arena.querySelectorAll('[data-dice-player]')){
+   const first=before.get(player.dataset.dicePlayer);if(!first)continue;
+   const last=player.getBoundingClientRect(),dx=first.left-last.left,dy=first.top-last.top;
+   if(Math.abs(dx)+Math.abs(dy)<2)continue;
+   player.animate([{translate:dx+'px '+dy+'px'},{translate:'0px 0px'}],{duration:900,easing:'cubic-bezier(.2,.8,.2,1)'});
+  }
+ },1750);
 }
 // Trou noir : annonce 1,5 s, puis seulement le vortex et les relances.
 // Le serveur a déjà calculé le résultat ; on garde visuellement les anciens dés
@@ -293,7 +319,7 @@ function animateDice(prev,s){if(!prev||s.phase==='lobby')return;if(s.actionEvent
 const identityKey='trois-couronnes-id';let id=localStorage.getItem(identityKey);if(!id||!/^[a-f0-9]{24}$/i.test(id)){id=[...crypto.getRandomValues(new Uint8Array(12))].map(x=>x.toString(16).padStart(2,'0')).join('');localStorage.setItem(identityKey,id)}$('name').value=storedPrefs.name||localStorage.getItem('trois-couronnes-name')||'';if(/^#[0-9a-fA-F]{6}$/.test(storedPrefs.color||''))$('dice-color').value=storedPrefs.color;if(['uni','arcade','bois','metal','magic','damier','tapis'].includes(storedPrefs.background))$('board-bg').value=storedPrefs.background;
 const requested=new URLSearchParams(location.search).get('salon');if(requested){$('room-info').textContent='Invitation au salon '+requested.toUpperCase();$('join-code').value=requested.toUpperCase()}
 function notice(x){$('notice').textContent=x||''}function send(o){if(ws?.readyState===1)ws.send(JSON.stringify(o));else notice('Connexion perdue. Reconnexion en cours…')}
-function connect(room){if(connecting)return;const name=$('name').value.trim();if(!name){notice('Entre un pseudo.');return}localStorage.setItem('trois-couronnes-name',name);savePrefs({name});connecting=true;if(ws){const old=ws;ws=null;old.onclose=null;old.close()}const proto=location.protocol==='https:'?'wss':'ws';const socket=new WebSocket(proto+'://'+location.host);ws=socket;socket.onopen=()=>{connecting=false;send({type:'join',room,id,name,icon:pickedAvatar})};socket.onmessage=e=>{const d=JSON.parse(e.data);if(d.type==='error'){notice(d.message);return}if(d.type==='state'){const prev=state;state=d;if(prev&&(prev.round!==d.round||prev.tableNo!==d.tableNo||prev.me!==d.me)){selected=null;directTargets=[]}notice('');const eliminationGhosts=prepareEliminationGhosts(prev,d);const own=d.players.find(p=>p.id===d.me);if(location.search!=='?salon='+d.room)history.replaceState(null,'','?salon='+d.room);render();animateDice(prev,d);cardPlayedEffect(prev,d);crownEarnedEffect(prev,d);decisiveIntro(prev,d);addComboEffects(d);eliminationSlash(prev,d,eliminationGhosts);if(prev?.phase!=='over'&&d.phase==='over')victoryApplause();if(d.phase==='lobby'&&prefsSyncedRoom!==d.room){prefsSyncedRoom=d.room;const pref=getPrefs();if(/^#[0-9a-fA-F]{6}$/.test(pref.color||'')&&['uni','arcade','bois','metal','magic','damier','tapis'].includes(pref.background||'')){const own=d.players.find(p=>p.id===d.me);if(own&&(own.color.toUpperCase()!==pref.color.toUpperCase()||own.background!==pref.background))send({type:'customize',color:pref.color,background:pref.background,icon:pickedAvatar})}}}if(d.type==='left')location.assign('/');if(d.type==='kicked'){alert(d.message||'Tu as été retiré de cette table.');location.assign('/')}};socket.onclose=()=>{connecting=false;if(!leaving&&state&&ws===socket){notice('Connexion interrompue : reconnexion automatique…');setTimeout(()=>{if(!leaving&&ws===socket)connect(state.room)},2300)}};socket.onerror=()=>notice('Serveur indisponible. Vérifie le déploiement Render.')}
+function connect(room){if(connecting)return;const name=$('name').value.trim();if(!name){notice('Entre un pseudo.');return}localStorage.setItem('trois-couronnes-name',name);savePrefs({name});connecting=true;if(ws){const old=ws;ws=null;old.onclose=null;old.close()}const proto=location.protocol==='https:'?'wss':'ws';const socket=new WebSocket(proto+'://'+location.host);ws=socket;socket.onopen=()=>{connecting=false;send({type:'join',room,id,name,icon:pickedAvatar})};socket.onmessage=e=>{const d=JSON.parse(e.data);if(d.type==='error'){notice(d.message);return}if(d.type==='state'){const prev=state;state=d;if(prev&&(prev.round!==d.round||prev.tableNo!==d.tableNo||prev.me!==d.me)){selected=null;directTargets=[]}notice('');const eliminationStage=prepareEliminationStage(prev,d);const own=d.players.find(p=>p.id===d.me);if(location.search!=='?salon='+d.room)history.replaceState(null,'','?salon='+d.room);render();animateDice(prev,d);cardPlayedEffect(prev,d);crownEarnedEffect(prev,d);decisiveIntro(prev,d);addComboEffects(d);eliminationSlash(eliminationStage);if(prev?.phase!=='over'&&d.phase==='over')victoryApplause();if(d.phase==='lobby'&&prefsSyncedRoom!==d.room){prefsSyncedRoom=d.room;const pref=getPrefs();if(/^#[0-9a-fA-F]{6}$/.test(pref.color||'')&&['uni','arcade','bois','metal','magic','damier','tapis'].includes(pref.background||'')){const own=d.players.find(p=>p.id===d.me);if(own&&(own.color.toUpperCase()!==pref.color.toUpperCase()||own.background!==pref.background))send({type:'customize',color:pref.color,background:pref.background,icon:pickedAvatar})}}}if(d.type==='left')location.assign('/');if(d.type==='kicked'){alert(d.message||'Tu as été retiré de cette table.');location.assign('/')}};socket.onclose=()=>{connecting=false;if(!leaving&&state&&ws===socket){notice('Connexion interrompue : reconnexion automatique…');setTimeout(()=>{if(!leaving&&ws===socket)connect(state.room)},2300)}};socket.onerror=()=>notice('Serveur indisponible. Vérifie le déploiement Render.')}
 function home(){if(!state){location.assign('/');return}if(state.phase!=='lobby'&&!confirm('Quitter la partie ? Ta place sera réservée pour une reconnexion, ou l’hôte pourra te remplacer par un bot.'))return;leaving=true;if(state.phase==='lobby'&&ws?.readyState===1){send({type:'leave'});setTimeout(()=>location.assign('/'),300)}else{try{ws?.close()}catch{}location.assign('/')}}
 function joinFromHome(){const code=$('join-code').value.trim().toUpperCase();if(!/^[A-F0-9]{6}$/.test(code)){notice('Entre un code de salon valide de 6 caractères (de 0 à 9 et de A à F).');$('join-code').focus();return}connect(code)}
 $('home').onclick=home;$('create').onclick=()=>connect('');$('join').onclick=joinFromHome;$('join-code').oninput=()=>{$('join-code').value=$('join-code').value.toUpperCase().replace(/[^0-9A-F]/g,'').slice(0,6)};$('join-code').onkeydown=e=>{if(e.key==='Enter')joinFromHome()};$('copy').onclick=async()=>{try{await navigator.clipboard.writeText($('link').value);$('copy').textContent='Copié !'}catch{$('link').select();notice('Copie le lien sélectionné.')}};
@@ -403,7 +429,32 @@ function renderTables(s){
   }else{button.disabled=!allowed;button.textContent=current?'✓ Ta table':table.phase!=='lobby'?'Partie en cours':!allowed?'Table complète':'↔ Rejoindre la table';button.onclick=()=>send({type:'moveTable',table:table.number})}card.append(button);target.append(card)
  }
  const summary=$('extensions-summary');if(summary)summary.textContent=s.enabledExtras?.length?'🧩 Extensions : '+s.enabledExtras.map(k=>defs[k][0]).join(' · ')+' ('+ (40+s.enabledExtras.reduce((n,k)=>n+extraCounts[k],0))+' cartes)':'🎴 Paquet classique : 40 cartes.';
- const container=$('extension-options');if(container){container.replaceChildren(...extraCards.map(k=>{const row=document.createElement('label');row.className='extension-option';const check=document.createElement('input');check.type='checkbox';check.checked=(s.enabledExtras||[]).includes(k);check.onchange=()=>{const added=new Set(s.enabledExtras||[]);if(check.checked)added.add(k);else added.delete(k);send({type:'setExtensions',cards:extraCards.filter(x=>added.has(x))})};const label=document.createElement('span');label.textContent=defs[k][1]+' '+defs[k][0]+' ×'+extraCounts[k]+' · '+defs[k][2];row.append(check,label);return row}))}
+ const container=$('extension-options');
+ if(container){
+  const enabled=new Set(s.enabledExtras||[]);
+  const options=extraCards.map(k=>{
+   const row=document.createElement('label');row.className='extension-option';
+   const check=document.createElement('input');check.type='checkbox';check.checked=enabled.has(k);
+   check.onchange=()=>{
+    const added=new Set(state?.enabledExtras||[]);
+    if(check.checked)added.add(k);else added.delete(k);
+    send({type:'setExtensions',cards:extraCards.filter(x=>added.has(x))});
+   };
+   const label=document.createElement('span');label.textContent=defs[k][1]+' '+defs[k][0]+' ×'+extraCounts[k]+' · '+defs[k][2];
+   row.append(check,label);return row;
+  });
+  // Douzième case du salon : l'option globale n'est PAS une carte du paquet.
+  const bulk=document.createElement('label');bulk.className='extension-option extension-option-all';
+  const allCheck=document.createElement('input');allCheck.type='checkbox';allCheck.id='extensions-toggle-all';
+  const allEnabled=extraCards.every(k=>enabled.has(k));
+  allCheck.checked=allEnabled;
+  allCheck.indeterminate=!allEnabled&&extraCards.some(k=>enabled.has(k));
+  const allLabel=document.createElement('span');allLabel.textContent=allEnabled?'✅ Tout désactiver':'✅ Toutes les extensions · Tout sélectionner';
+  allCheck.onchange=()=>send({type:'setExtensions',cards:allCheck.checked?[...extraCards]:[]});
+  bulk.append(allCheck,allLabel);
+  options.push(bulk);
+  container.replaceChildren(...options);
+ }
  renderLeaderboard($('lobby-leaderboard'),s.leaderboard,s.scoresPersistent);
 }
 function renderVictorySwitch(s){
@@ -505,7 +556,11 @@ $('team-hint').textContent=isTeamMode(s.mode)?(s.teamDrawCount?'✅ Tirage n°'+
   else for(let i=0;i<s.marketCount;i++){const b=document.createElement('span');b.className='market-card-back';b.textContent='🂠';b.setAttribute('aria-label','Carte face cachée');marketOpts.append(b)}
  }
 
- const choicePanel=$('choice-panel'),choiceOpts=$('choice-options');choicePanel.hidden=!['grimoire','ransom'].includes(s.phase);choiceOpts.replaceChildren();
+ const choicePanel=$('choice-panel'),choiceOpts=$('choice-options');
+ choicePanel.classList.toggle('ransom-dialog',s.phase==='ransom');
+ // Les observateurs conservent leur vue sur le plateau : le choix de Rançon est privé.
+ choicePanel.hidden=s.phase==='grimoire'?false:s.phase==='ransom'?(s.ransomVictim!==s.me||s.hand.length===0):true;
+ choiceOpts.replaceChildren();
  if(s.phase==='grimoire'){
   const mine=s.grimoireOwner===s.me; $('choice-heading').textContent='📖 Grimoire interdit';
   $('choice-status').textContent=mine?'Choisis une carte à conserver. Les deux autres retournent sous la pioche.':'Un joueur consulte secrètement son Grimoire interdit…';
@@ -514,8 +569,8 @@ $('team-hint').textContent=isTeamMode(s.mode)?(s.teamDrawCount?'✅ Tirage n°'+
   }else{$('grimoire-replace-wrap').hidden=true;for(let i=0;i<s.grimoireCount;i++){const back=document.createElement('span');back.className='market-card-back';back.textContent='🂠';choiceOpts.append(back)}}
  }else if(s.phase==='ransom'){
   $('grimoire-replace-wrap').hidden=true;$('choice-heading').textContent='💰 Rançon';
-  const mine=s.ransomVictim===s.me;$('choice-status').textContent=mine?'Choisis ton sacrifice : donner une carte ou relancer ton dé le plus élevé.':'Un adversaire choisit comment payer la Rançon…';
-  if(mine){if(s.hand.length>=3){const discard=document.createElement('button');discard.className='market-choice card card-attack';discard.textContent='💰 Défausser une carte';discard.onclick=()=>send({type:'ransomPick',choice:'discard',discardIndex:Number($('ransom-discard').value)});choiceOpts.append(discard);const sel=$('ransom-discard-wrap');sel.hidden=false;options($('ransom-discard'),s.hand.map((key,i)=>[i,defs[key]?.[0]||key]));}else $('ransom-discard-wrap').hidden=true;
+  const mine=s.ransomVictim===s.me;$('choice-status').textContent=mine?'Choisis : sacrifier une carte (même la dernière) ou relancer ton meilleur dé.':'Un adversaire choisit comment payer la Rançon…';
+  if(mine){if(s.hand.length>=1){const discard=document.createElement('button');discard.className='market-choice card card-attack';discard.textContent='💰 Défausser une carte';discard.onclick=()=>send({type:'ransomPick',choice:'discard',discardIndex:Number($('ransom-discard').value)});choiceOpts.append(discard);const sel=$('ransom-discard-wrap');sel.hidden=false;options($('ransom-discard'),s.hand.map((key,i)=>[i,defs[key]?.[0]||key]));}else $('ransom-discard-wrap').hidden=true;
    const reroll=document.createElement('button');reroll.className='market-choice card card-magic';reroll.textContent='🎲 Relancer mon meilleur dé';reroll.onclick=()=>send({type:'ransomPick',choice:'reroll'});choiceOpts.append(reroll);
   }else $('ransom-discard-wrap').hidden=true;
  }else{$('grimoire-replace-wrap').hidden=true;$('ransom-discard-wrap').hidden=true;}
