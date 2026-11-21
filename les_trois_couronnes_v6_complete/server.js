@@ -53,7 +53,7 @@ function finishRound(r){
  if(completed){
   const champion=decisive?(r.mode==='2v2'?winners[0]:r.players.findIndex(p=>p.id===winners[0])):leaders[0];
   r.winner=r.mode==='2v2'?champion:r.players[champion].id;
-  log(r,`🏆 ${r.mode==='2v2'?teamName(r,r.winner):r.players[champion].name} a obtenu les Trois Couronnes et gagne ${r.stake*r.players.length} PO fictives.`);
+  log(r,`🏆 ${r.mode==='2v2'?teamName(r,r.winner):r.players[champion].name} remporte ${r.final?'la mort subite':'la partie'} avec ${high} couronne(s) et gagne ${r.stake*r.players.length} PO fictives.`);
  }else{
   if(!r.final&&high>=5&&leaders.length>=2){r.final=true;log(r,'⚔️ Égalité à cinq couronnes : la prochaine manche sera décisive !')}
   if(!r.final)r.players.forEach(p=>refill(r,p));
@@ -62,7 +62,7 @@ function finishRound(r){
  broadcast(r);
  setTimeout(()=>{
   if(r.phase!=='revealing')return;
-  if(completed){r.phase='over';r.revealUntil=null;broadcast(r)}
+  if(completed){r.phase='over';r.revealUntil=null;r.players.forEach(p=>{if(p.bot)p.ready=true});broadcast(r)}
   else startRound(r);
  },REVEAL_MS);
 }
@@ -114,6 +114,7 @@ function handle(ws,msg){if(!msg||typeof msg!=='object')return;try{if(msg.type===
  if(msg.type==='start'){if(r.phase!=='lobby'||r.host!==p.id)throw Error('Seul l’hôte peut lancer la partie.');if(r.players.length!==modes[r.mode])throw Error(`Le mode ${r.mode} nécessite ${modes[r.mode]} joueurs (humains ou bots).`);if(r.players.some(x=>!x.bot&&!x.ws))throw Error('Un joueur est déconnecté.');if(r.mode==='2v2'&&msg.teamNames!==undefined)r.teamNames=validateTeamNames(msg.teamNames);r.stake=Math.min(9999,Math.max(0,Math.trunc(Number(msg.stake)||0)));restart(r);return}
  if(msg.type==='action'){act(r,p,msg);return}
  
+ if(msg.type==='backToLobby'){if(r.phase!=='over')throw Error('Le retour au salon est disponible à la fin de la partie.');if(p.id!==r.host)throw Error('Seul l’hôte peut ramener la table au salon.');r.phase='lobby';r.winner=null;r.final=false;r.round=0;r.revealUntil=null;r.revealWinners=[];r.roundResult='';r.nextRoundAt=null;r.teamScores=[0,0];r.limitedUsed={};r.deck=[];r.discard=[];r.log=[];r.players.forEach(x=>{x.score=0;x.dice=[];x.hand=[];x.guard=false;x.acted=false;x.ready=x.bot;x.roundReady=false});log(r,'Retour au salon : choisissez les équipes, les couleurs ou le mode avant de rejouer.');broadcast(r);return}
  if(msg.type==='rematch'){if(r.phase!=='over')throw Error('La partie n’est pas terminée.');p.ready=!p.ready;r.players.filter(x=>x.bot).forEach(x=>x.ready=true);startIfReady(r);return}
  if(msg.type==='replaceOffline'){if(r.host!==p.id||r.phase==='lobby')throw Error('Action réservée à l’hôte pendant une partie.');const gone=r.players.find(x=>x.id===msg.id&&!x.bot&&!x.ws);if(!gone)throw Error('Joueur non déconnecté.');gone.bot=true;gone.name+=' (bot)';gone.ready=true;gone.roundReady=true;log(r,`${gone.name} reprend le jeu automatiquement.`);if(r.phase==='playing'&&r.players[r.order[r.turn]]===gone)scheduleBot(r);if(r.phase==='between'||r.phase==='over')startIfReady(r);broadcast(r);return}
  if(msg.type==='leave'){if(r.phase!=='lobby')throw Error('En cours de partie, utilise Accueil puis éventuellement un bot de remplacement.');r.players=r.players.filter(x=>x!==p);ws.room=null;ws.pid=null;if(!r.players.some(x=>!x.bot)){rooms.delete(r.code)}else{if(r.host===p.id)r.host=r.players.find(x=>!x.bot).id;broadcast(r)}send(ws,{type:'left'});return}
