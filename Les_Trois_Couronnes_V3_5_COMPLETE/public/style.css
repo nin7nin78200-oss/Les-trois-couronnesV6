@@ -454,9 +454,18 @@ header #sound{margin:8px 5px 0;padding:9px 12px;font-size:12px}
 .elimination-ghost .elimination-slash{position:absolute;inset:0}
 #boards.mode-survie.mode-survie-equipes .player.team-blue{border-left:3px solid #76aff0}
 #boards.mode-survie.mode-survie-equipes .player.team-red{border-left:3px solid #ed8b86}
+#boards.mode-survie.mode-survie-2v2v2v2 .player.team-blue{border-left:3px solid #76aff0}
+#boards.mode-survie.mode-survie-2v2v2v2 .player.team-red{border-left:3px solid #ed8b86}
+#boards.mode-survie.mode-survie-2v2v2v2 .player.team-green{border-left:3px solid #65c695}
+#boards.mode-survie.mode-survie-2v2v2v2 .player.team-yellow{border-left:3px solid #edca65}
+#boards.mode-survie.mode-survie-2v2v2v2 .survival-team-count{font-size:10px;line-height:1.5;max-width:210px}
 #boards.mode-survie.mode-survie-equipes .survival-team-count{font-size:11px;line-height:1.4;max-width:160px}
 #cards .card-voleur{background:linear-gradient(155deg,#853c26,#52211f);border-color:#e7a264}
 
 /* La troisième place reste centrée même pendant une animation de carte. */
 @media(min-width:751px){#boards.mode-1v1v1>.player:last-of-type{grid-column:1 / -1;justify-self:center;width:100%}}
 @media(max-width:750px){#boards.mode-1v1v1>.player:last-of-type{grid-column:auto;max-width:none;width:100%}}
+
+/* Quatre camps : bilan compact dans le centre de la ronde. */
+#boards.mode-survie.mode-survie-2v2v2v2 .survival-team-count.four-teams-count{display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;max-width:132px;width:132px;line-height:1.15;font-size:11px;text-align:center}
+#boards.mode-survie.mode-survie-2v2v2v2 .four-teams-count span{white-space:nowrap}
