@@ -1,0 +1,16 @@
+{
+  "name": "les-trois-couronnes-online",
+  "version": "3.5.0",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test-server.js && node test-multitable.js && node test-extension40.js && node test-magie33.js && node test-survie.js && node test-survie-bots.js && node test-v35.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ws": "^8.18.0",
+    "pg": "^8.13.1"
+  }
+}
