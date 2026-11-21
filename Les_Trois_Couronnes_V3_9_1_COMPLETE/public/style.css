@@ -533,3 +533,21 @@ header #sound{margin:8px 5px 0;padding:9px 12px;font-size:12px}
  .target-confirm{top:42%;max-height:65dvh;overflow-y:auto}
 }
 @media(prefers-reduced-motion:reduce){.target-confirm,.blackhole-announcement{animation:none!important}}
+
+/* V3.9.2 — action globale, logée dans la dernière case de la grille d'extensions. */
+.extension-option-all{border-color:#c3a260;background:linear-gradient(135deg,#304936,#20382d);color:#f5dc9c;cursor:pointer;align-items:center;font-weight:700}
+.extension-option-all:hover,.extension-option-all:focus-within{border-color:#f5d083;background:#375640}
+.extension-option-all input{cursor:pointer}
+
+/* V3.9.3 FINALE — La ronde ne se resserre qu'après la frappe d'élimination. */
+.survival-frozen-board{isolation:isolate;pointer-events:none!important;overflow:visible!important}
+.survival-frozen-board .player{transition:none!important}
+.survival-frozen-board .elimination-slash{z-index:60}
+/* Rançon : deux choix lisibles, à taille humaine et uniquement pour la victime. */
+#choice-panel.ransom-dialog:not([hidden]){width:min(460px,calc(100vw - 24px));padding:18px 17px}
+#choice-panel.ransom-dialog .market-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;max-height:none;overflow:visible;padding:10px 0 0}
+#choice-panel.ransom-dialog .market-choice{width:100%;min-width:0;max-width:none;min-height:74px;padding:10px 8px;font-size:13px;white-space:normal}
+#choice-panel.ransom-dialog label{display:flex;align-items:center;justify-content:center;gap:9px;flex-wrap:wrap}
+#choice-panel.ransom-dialog label[hidden]{display:none}
+#choice-panel.ransom-dialog select{max-width:210px;margin:0}
+@media(max-width:380px){#choice-panel.ransom-dialog .market-options{grid-template-columns:1fr}#choice-panel.ransom-dialog .market-choice{min-height:50px}}
