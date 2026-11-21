@@ -13,6 +13,7 @@ function rank(a){if(a.length!==3)return [0,0,0];const d=[...a].sort((x,y)=>x-y);
 function cmp(a,b){for(let i=0;i<3;i++)if(a[i]!==b[i])return a[i]-b[i];return 0}
 const teamOf=(r,p)=>r.mode==='2v2'?(r.players.indexOf(p)<2?0:1):r.players.indexOf(p);
 const teamName=(r,t)=>r.teamNames?.[t]||(t===0?'Équipe bleue':'Équipe rouge');
+function validateTeamNames(names){if(!Array.isArray(names)||names.length!==2)throw Error('Noms d’équipes invalides.');const clean=names.map((v,i)=>String(v??'').trim().replace(/[<>\x00-\x1f]/g,'').slice(0,24)||(i===0?'Équipe bleue':'Équipe rouge'));if(clean[0].toLocaleLowerCase('fr')===clean[1].toLocaleLowerCase('fr'))throw Error('Les deux équipes doivent avoir des noms différents.');return clean;}
 const canTarget=(r,actor,p,ally)=>ally?teamOf(r,actor)===teamOf(r,p):teamOf(r,actor)!==teamOf(r,p);
 const send=(ws,o)=>{if(ws&&ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify(o))};
 function log(r,s){r.log.push(s);if(r.log.length>70)r.log.shift()}
@@ -20,8 +21,8 @@ function view(r,p){return {type:'state',room:r.code,phase:r.phase,mode:r.mode,ho
 function broadcast(r){for(const p of r.players)if(!p.bot)send(p.ws,view(r,p))}
 function deck(){return shuffle(Object.entries(defs).flatMap(([k,v])=>Array(v.count).fill(k)))}
 function refill(r,p){while(p.hand.length<3){if(!r.deck.length){r.deck=shuffle(r.discard.splice(0));if(!r.deck.length)break}p.hand.push(r.deck.pop())}}
-function orderFor(r){const base=r.mode==='2v2'?[0,2,1,3]:r.players.map((_,i)=>i);const offset=(r.startOffset+r.round-1)%base.length;return [...base.slice(offset),...base.slice(0,offset)]}
-function startRound(r){r.round++;r.phase='playing';r.order=orderFor(r);r.turn=0;r.revealUntil=null;r.revealWinners=[];r.roundResult='';r.nextRoundAt=null;r.limitedUsed={};r.players.forEach(p=>{p.dice=[roll(),roll(),roll()];p.guard=false;p.acted=false;p.roundReady=false});log(r,`Manche ${r.round} : ${r.players[r.order[0]].name} commence.`);broadcast(r);scheduleBot(r)}
+function orderFor(r){if(r.final){if(r.mode==='2v2'){const left=shuffle([0,1]),right=shuffle([2,3]);return random(2)?[left[0],right[0],left[1],right[1]]:[right[0],left[0],right[1],left[1]]}return shuffle(r.players.map((_,i)=>i))}const base=r.mode==='2v2'?[0,2,1,3]:r.players.map((_,i)=>i);const offset=(r.startOffset+r.round-1)%base.length;return [...base.slice(offset),...base.slice(0,offset)]}
+function startRound(r){if(r.final){r.deck=deck();r.discard=[];r.players.forEach(p=>{p.hand=[];refill(r,p)});log(r,'⚔️ Manche décisive : nouveaux dés, nouvelles cartes et nouvel ordre tiré au sort !')}r.round++;r.phase='playing';r.order=orderFor(r);r.turn=0;r.revealUntil=null;r.revealWinners=[];r.roundResult='';r.nextRoundAt=null;r.limitedUsed={};r.players.forEach(p=>{p.dice=[roll(),roll(),roll()];p.guard=false;p.acted=false;p.roundReady=false});log(r,`Manche ${r.round} : ${r.players[r.order[0]].name} commence.`);broadcast(r);scheduleBot(r)}
 function restart(r){r.round=0;r.nextRoundAt=null;r.winner=null;r.final=false;r.teamScores=[0,0];r.log=[];r.deck=deck();r.discard=[];r.startOffset=random(r.players.length);r.players.forEach(p=>{p.score=0;p.hand=[];p.ready=false;p.roundReady=false;refill(r,p)});log(r,'Nouvelle partie : premier joueur désigné au hasard.');startRound(r)}
 function compareEntities(r){if(r.mode==='2v2'){return [0,1].map(t=>({id:t,rank:r.players.filter(p=>teamOf(r,p)===t).map(p=>rank(p.dice)).sort((a,b)=>cmp(b,a))[0]}))}return r.players.map(p=>({id:p.id,rank:rank(p.dice)}))}
 function finishRound(r){
@@ -30,29 +31,33 @@ function finishRound(r){
  const best=entities.map(x=>x.rank).sort((a,b)=>cmp(b,a))[0];
  const winners=entities.filter(x=>cmp(x.rank,best)===0).map(x=>x.id);
  r.revealWinners=winners;
- const tiedFinal=r.final&&winners.length>1;
- if(!tiedFinal){
-  if(r.mode==='2v2'){
-   winners.forEach(t=>r.teamScores[t]++);
-   r.roundResult=winners.length===1?`${teamName(r,winners[0])} a remporté une couronne !`:`${teamName(r,0)} et ${teamName(r,1)} ont remporté une couronne chacun !`;
-  }else{
-   winners.forEach(id=>r.players.find(p=>p.id===id).score++);
-   const names=winners.map(id=>r.players.find(p=>p.id===id).name);
-   r.roundResult=names.length===1?`${names[0]} a remporté une couronne !`:`${names.slice(0,-1).join(', ')} et ${names.at(-1)} ont remporté une couronne chacun !`;
-  }
- }else r.roundResult='Égalité en manche décisive : aucune couronne attribuée.';
+ const decisive=r.final;
+ // Dans une mort subite, une égalité relance intégralement la manche.
+ const noCrown=decisive&&winners.length!==1;
+ if(noCrown){r.roundResult='⚔️ Égalité en manche décisive ! Nouveau tirage pour départager les joueurs.'}
+ else if(r.mode==='2v2'){
+  winners.forEach(t=>r.teamScores[t]++);
+  r.roundResult=winners.length===1?`${teamName(r,winners[0])} a remporté une couronne !`:`${teamName(r,0)} et ${teamName(r,1)} ont remporté une couronne chacun !`;
+ }else{
+  winners.forEach(id=>r.players.find(p=>p.id===id).score++);
+  const names=winners.map(id=>r.players.find(p=>p.id===id).name);
+  r.roundResult=names.length===1?`${names[0]} a remporté une couronne !`:`${names.slice(0,-1).join(', ')} et ${names.at(-1)} ont remporté une couronne chacun !`;
+ }
  log(r,r.roundResult);
  const scores=r.mode==='2v2'?r.teamScores:r.players.map(p=>p.score);
- const high=Math.max(...scores),leaders=scores.map((v,i)=>v===high?i:-1).filter(i=>i>=0);
- const completed=high>=3&&leaders.length===1;
+ const ordered=[...scores].sort((a,b)=>b-a),high=ordered[0],runnerUp=ordered[1]??0;
+ const leaders=scores.map((v,i)=>v===high?i:-1).filter(i=>i>=0);
+ // Une victoire en temps normal exige trois couronnes et deux d'avance.
+ // À 5–5 (ou égalité en tête à 5+ en mêlée), une mort subite commence.
+ const completed=(decisive&&winners.length===1)||(!decisive&&high>=3&&leaders.length===1&&high-runnerUp>=2);
  if(completed){
-  r.winner=r.mode==='2v2'?leaders[0]:r.players[leaders[0]].id;
-  log(r,`🏆 ${r.mode==='2v2'?teamName(r,r.winner):r.players[leaders[0]].name} a obtenu les Trois Couronnes et gagne ${r.stake*r.players.length} PO fictives.`);
+  const champion=decisive?(r.mode==='2v2'?winners[0]:r.players.findIndex(p=>p.id===winners[0])):leaders[0];
+  r.winner=r.mode==='2v2'?champion:r.players[champion].id;
+  log(r,`🏆 ${r.mode==='2v2'?teamName(r,r.winner):r.players[champion].name} a obtenu les Trois Couronnes et gagne ${r.stake*r.players.length} PO fictives.`);
  }else{
-  r.final=high>=3;
-  r.players.forEach(p=>refill(r,p));
+  if(!r.final&&high>=5&&leaders.length>=2){r.final=true;log(r,'⚔️ Égalité à cinq couronnes : la prochaine manche sera décisive !')}
+  if(!r.final)r.players.forEach(p=>refill(r,p));
  }
- // On affiche la combinaison finale et le vainqueur pendant exactement 4 secondes.
  r.revealUntil=Date.now()+REVEAL_MS;
  broadcast(r);
  setTimeout(()=>{
@@ -102,11 +107,11 @@ function join(ws,msg){const code=String(msg.room||'').trim().toUpperCase();const
  let p=r.players.find(x=>x.id===id);if(!p){if(r.phase!=='lobby')throw Error('Partie déjà commencée : reconnexions uniquement.');if(r.players.length>=modes[r.mode])throw Error('Salon complet pour ce mode.');p={id,name,color:diceColors[r.players.length%4],background:'uni',bot:false,ws:null,score:0,dice:[],guard:false,hand:[],acted:false,ready:false,roundReady:false};r.players.push(p);log(r,`${name} rejoint la table.`)}else{if(p.bot)throw Error('Impossible de rejoindre à la place d’un bot.');p.name=name;if(p.ws&&p.ws!==ws)try{p.ws.close()}catch{}}p.ws=ws;ws.room=r.code;ws.pid=id;broadcast(r)}
 function handle(ws,msg){if(!msg||typeof msg!=='object')return;try{if(msg.type==='join'){join(ws,msg);return}const r=rooms.get(ws.room);if(!r)throw Error('Salon introuvable.');const p=r.players.find(x=>x.id===ws.pid);if(!p||p.ws!==ws||p.bot)throw Error('Connexion invalide.');
  if(msg.type==='customize'){if(r.phase!=='lobby')throw Error('La personnalisation se fait dans le salon avant la partie.');const color=String(msg.color||'').toUpperCase();const bg=String(msg.background||'');if(!/^#[0-9A-F]{6}$/.test(color))throw Error('Couleur invalide.');if(!backgrounds.has(bg))throw Error('Fond invalide.');if(r.players.some(x=>x!==p&&x.color.toUpperCase()===color))throw Error('Cette couleur est déjà utilisée. Choisis-en une autre.');p.color=color;p.background=bg;broadcast(r);return}
- if(msg.type==='teamNames'){if(r.phase!=='lobby'||p.id!==r.host)throw Error('Seul l’hôte peut modifier les noms des équipes dans le salon.');if(r.mode!=='2v2')throw Error('Les noms d’équipe sont réservés au mode 2v2.');if(!Array.isArray(msg.names)||msg.names.length!==2)throw Error('Noms d’équipes invalides.');const names=msg.names.map((v,i)=>String(v??'').trim().replace(/[<>\x00-\x1f]/g,'').slice(0,24)||(i===0?'Équipe bleue':'Équipe rouge'));if(names[0].toLocaleLowerCase('fr')===names[1].toLocaleLowerCase('fr'))throw Error('Les deux équipes doivent avoir des noms différents.');r.teamNames=names;broadcast(r);return}
+ if(msg.type==='teamNames'){if(r.phase!=='lobby'||p.id!==r.host)throw Error('Seul l’hôte peut modifier les noms des équipes dans le salon.');if(r.mode!=='2v2')throw Error('Les noms d’équipe sont réservés au mode 2v2.');r.teamNames=validateTeamNames(msg.names);broadcast(r);return}
  if(msg.type==='mode'){if(r.phase!=='lobby'||p.id!==r.host)throw Error('Action réservée à l’hôte du salon.');if(!modes[msg.mode])throw Error('Mode inconnu.');if(r.players.length>modes[msg.mode])throw Error('Trop de joueurs pour ce mode : retire les bots ou choisis un autre mode.');r.mode=msg.mode;log(r,`Mode sélectionné : ${r.mode}.`);broadcast(r);return}
  if(msg.type==='addBot'){if(r.phase!=='lobby'||r.host!==p.id)throw Error('Seul l’hôte peut ajouter un bot au salon.');if(r.players.length>=modes[r.mode])throw Error('Le salon est complet.');const id='bot-'+crypto.randomBytes(8).toString('hex');const bot={id,name:`Bot ${r.players.filter(x=>x.bot).length+1}`,color:diceColors[r.players.length%4],background:'uni',bot:true,ws:null,score:0,dice:[],guard:false,hand:[],acted:false,ready:true,roundReady:true};r.players.push(bot);log(r,`${bot.name} rejoint le salon.`);broadcast(r);return}
  if(msg.type==='removeBot'){if(r.phase!=='lobby'||r.host!==p.id)throw Error('Action réservée à l’hôte en salon.');const b=r.players.find(x=>x.id===msg.id&&x.bot);if(!b)throw Error('Bot introuvable.');r.players=r.players.filter(x=>x!==b);broadcast(r);return}
- if(msg.type==='start'){if(r.phase!=='lobby'||r.host!==p.id)throw Error('Seul l’hôte peut lancer la partie.');if(r.players.length!==modes[r.mode])throw Error(`Le mode ${r.mode} nécessite ${modes[r.mode]} joueurs (humains ou bots).`);if(r.players.some(x=>!x.bot&&!x.ws))throw Error('Un joueur est déconnecté.');r.stake=Math.min(9999,Math.max(0,Math.trunc(Number(msg.stake)||0)));restart(r);return}
+ if(msg.type==='start'){if(r.phase!=='lobby'||r.host!==p.id)throw Error('Seul l’hôte peut lancer la partie.');if(r.players.length!==modes[r.mode])throw Error(`Le mode ${r.mode} nécessite ${modes[r.mode]} joueurs (humains ou bots).`);if(r.players.some(x=>!x.bot&&!x.ws))throw Error('Un joueur est déconnecté.');if(r.mode==='2v2'&&msg.teamNames!==undefined)r.teamNames=validateTeamNames(msg.teamNames);r.stake=Math.min(9999,Math.max(0,Math.trunc(Number(msg.stake)||0)));restart(r);return}
  if(msg.type==='action'){act(r,p,msg);return}
  
  if(msg.type==='rematch'){if(r.phase!=='over')throw Error('La partie n’est pas terminée.');p.ready=!p.ready;r.players.filter(x=>x.bot).forEach(x=>x.ready=true);startIfReady(r);return}
