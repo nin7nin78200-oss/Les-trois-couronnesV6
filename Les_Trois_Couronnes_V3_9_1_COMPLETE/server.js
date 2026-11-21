@@ -250,7 +250,18 @@ function act(r,p,msg){if(r.phase!=='playing'||r.players[r.order[r.turn]]!==p||p.
  if(k==='marche'){const pool=[];for(const q of r.players.filter(x=>!isSurvival(r)||isAlive(x))){if(q.hand.length)pool.push(q.hand.splice(random(q.hand.length),1)[0])}r.marketPending={actorId:p.id,pool}}if(k==='pioche')drawOne(r,p);if(k==='secondechance'){const maxHand=p.bonusUsed?3:4;drawOne(r,p,maxHand);drawOne(r,p,maxHand)}p.cardsPlayed=(p.cardsPlayed||0)+1;const extra=['pioche','gambling','secondechance'].includes(k)&&!p.bonusUsed&&p.hand.length>0;if(['pioche','gambling','secondechance'].includes(k))p.bonusUsed=true;p.secondChanceHold=k==='secondechance'&&extra;r.actionEvent={id:++r.actionSerial,playerId:p.id,targetId:target?.id||p.id,card:k,cardName:cardName(k),playerName:p.name,targetName:target?.name||p.name,oldDice,rerolls,targets:k==='bouclier'?[{id:target.id,index:own},{id:msg.secondTarget,index:msg.secondIndex}]:exchange?[{id:p.id,index:own},{id:target.id,index:other}]:k==='benediction'?[{id:target.id,index:own},{id:target.id,index:destination}]:k==='barriere'||k==='corbeau'||k==='rancon'?[{id:target.id,index:null}]:k==='gambling'?p.dice.map((_,i)=>({id:p.id,index:i})):k==='chaos'||k==='trounoir'?rerolls:k==='tornade'?transfers.map(x=>({id:x.toId,index:x.toIndex})):k==='catastrophe'?catastropheTargets:k==='usurpation'?[...p.dice.map((_,i)=>({id:p.id,index:i})),...target.dice.map((_,i)=>({id:target.id,index:i}))]:['voleur','marche'].includes(k)?[{id:target?.id||p.id,index:null}]:[{id:target?.id||p.id,index:Number.isInteger(own)?own:null}],transfers,newDice:r.players.map(q=>({id:q.id,dice:[...q.dice],diceOrigins:[...(q.diceOrigins||[q.color,q.color,q.color])]}))};r.discard.push(k);p.acted=!extra;p.bonusPending=extra;log(r,`${p.name} joue ${cardName(k)}${target&&target!==p?' sur '+target.name:''}.${extra?' Il peut jouer une seconde carte.':''}`);if(k==='marche'&&r.marketPending.pool.length){r.phase='market';broadcast(r);if(p.bot)setTimeout(()=>{if(r.phase==='market'&&r.marketPending?.actorId===p.id)resolveMarket(r,p,botMarketPick(r.marketPending.pool))},3100);return}
  if(k==='marche'){r.marketPending=null;}
  if(k==='grimoire'&&r.grimoirePending){r.phase='grimoire';broadcast(r);if(p.bot)setTimeout(()=>{if(r.phase==='grimoire'&&r.grimoirePending?.actorId===p.id)resolveGrimoire(r,p,botGrimoirePick(r.grimoirePending.pool),p.hand.length>=3?0:null)},1900);return;}
- if(k==='rancon'){r.phase='ransom';broadcast(r);if(target.bot)setTimeout(()=>{if(r.phase==='ransom'&&r.ransomPending?.victimId===target.id)resolveRansom(r,target,target.hand.length>=3?'discard':'reroll',target.hand.length>=3?0:null)},2300);return;}
+ if(k==='rancon'){
+  r.phase='ransom';broadcast(r);
+  // Sans carte, la cible n'a aucun sacrifice à choisir : relance automatique.
+  if(!target.hand.length){setTimeout(()=>{if(r.phase==='ransom'&&r.ransomPending?.victimId===target.id)resolveRansom(r,target,'reroll',null)},900);return;}
+  if(target.bot)setTimeout(()=>{
+    if(r.phase==='ransom'&&r.ransomPending?.victimId===target.id){
+      const choice=botRansomChoice(target);
+      resolveRansom(r,target,choice,choice==='discard'?random(target.hand.length):null);
+    }
+  },2300);
+  return;
+ }
  if(extra){r.phase='transition';broadcast(r);setTimeout(()=>{if(r.phase!=='transition')return;r.phase='playing';broadcast(r);scheduleBot(r)},TURN_DELAY_MS)}else advance(r)
 }
 function botMarketPick(pool){const premium=['couronne','joker','usurpation','trounoir','epee','bouclier','secondechance','pioche'];const options=pool.map((key,i)=>({i,score:premium.includes(key)?premium.length-premium.indexOf(key):Math.random()*2}));return options.sort((a,b)=>b.score-a.score)[0]?.i??0}
@@ -276,11 +287,17 @@ function resolveGrimoire(r,p,index,discardIndex){
  r.grimoirePending=null;log(r,`${p.name} conserve secrètement une carte du Grimoire interdit.`);
  r.phase='playing';advance(r);
 }
+// Une Rançon n'applique PAS la protection de Boule de feu : même la dernière carte peut être sacrifiée.
+function botRansomChoice(p){
+ if(!p.hand.length)return 'reroll';
+ const best=Math.max(...p.dice);
+ return best>=5||p.hand.length>=3?'discard':'reroll';
+}
 function resolveRansom(r,p,choice,discardIndex){
  if(r.phase!=='ransom'||r.ransomPending?.victimId!==p.id)throw Error('Cette Rançon ne t’est pas destinée.');
  if(choice!=='discard'&&choice!=='reroll')throw Error('Choisis ton sacrifice.');
  if(choice==='discard'){
-  if(p.hand.length<3)throw Error('Tes deux dernières cartes sont protégées : relance ton meilleur dé.');
+  if(p.hand.length===0)throw Error('Tu n’as aucune carte à défausser : relance ton meilleur dé.');
   if(!Number.isInteger(discardIndex)||discardIndex<0||discardIndex>=p.hand.length)throw Error('Choisis la carte à défausser.');
   r.discard.push(p.hand.splice(discardIndex,1)[0]);log(r,`${p.name} paie la Rançon en sacrifiant une carte.`);
  }else{
@@ -410,7 +427,7 @@ function handle(ws,msg){if(!msg||typeof msg!=='object')return;try{if(msg.type===
  
  if(msg.type==='backToLobby'){if(r.phase!=='over')throw Error('Le retour au salon est disponible à la fin de la partie.');if(p.id!==r.host)throw Error('Seul l’hôte peut ramener la table au salon.');resetTableToLobby(r);broadcast(r);return}
  if(msg.type==='rematch'){if(r.phase!=='over')throw Error('La partie n’est pas terminée.');p.ready=!p.ready;r.players.filter(x=>x.bot).forEach(x=>x.ready=true);startIfReady(r);return}
- if(msg.type==='replaceOffline'){if(r.host!==p.id||r.phase==='lobby')throw Error('Action réservée à l’hôte pendant une partie.');const gone=r.players.find(x=>x.id===msg.id&&!x.bot&&!x.ws);if(!gone)throw Error('Joueur non déconnecté.');gone.bot=true;gone.name+=' (bot)';gone.ready=true;gone.roundReady=true;log(r,`${gone.name} reprend le jeu automatiquement.`);if(r.phase==='playing'&&r.players[r.order[r.turn]]===gone)scheduleBot(r);if(r.phase==='market'&&r.marketPending?.actorId===gone.id)setTimeout(()=>{if(r.phase==='market'&&r.marketPending?.actorId===gone.id)resolveMarket(r,gone,botMarketPick(r.marketPending.pool))},BOT_DELAY_MS);if(r.phase==='grimoire'&&r.grimoirePending?.actorId===gone.id)setTimeout(()=>{if(r.phase==='grimoire'&&r.grimoirePending?.actorId===gone.id)resolveGrimoire(r,gone,botGrimoirePick(r.grimoirePending.pool),gone.hand.length>=3?0:null)},BOT_DELAY_MS);if(r.phase==='ransom'&&r.ransomPending?.victimId===gone.id)setTimeout(()=>{if(r.phase==='ransom'&&r.ransomPending?.victimId===gone.id)resolveRansom(r,gone,gone.hand.length>=3?'discard':'reroll',gone.hand.length>=3?0:null)},BOT_DELAY_MS);if(r.phase==='between'||r.phase==='over')startIfReady(r);broadcast(r);return}
+ if(msg.type==='replaceOffline'){if(r.host!==p.id||r.phase==='lobby')throw Error('Action réservée à l’hôte pendant une partie.');const gone=r.players.find(x=>x.id===msg.id&&!x.bot&&!x.ws);if(!gone)throw Error('Joueur non déconnecté.');gone.bot=true;gone.name+=' (bot)';gone.ready=true;gone.roundReady=true;log(r,`${gone.name} reprend le jeu automatiquement.`);if(r.phase==='playing'&&r.players[r.order[r.turn]]===gone)scheduleBot(r);if(r.phase==='market'&&r.marketPending?.actorId===gone.id)setTimeout(()=>{if(r.phase==='market'&&r.marketPending?.actorId===gone.id)resolveMarket(r,gone,botMarketPick(r.marketPending.pool))},BOT_DELAY_MS);if(r.phase==='grimoire'&&r.grimoirePending?.actorId===gone.id)setTimeout(()=>{if(r.phase==='grimoire'&&r.grimoirePending?.actorId===gone.id)resolveGrimoire(r,gone,botGrimoirePick(r.grimoirePending.pool),gone.hand.length>=3?0:null)},BOT_DELAY_MS);if(r.phase==='ransom'&&r.ransomPending?.victimId===gone.id)setTimeout(()=>{if(r.phase==='ransom'&&r.ransomPending?.victimId===gone.id){const choice=botRansomChoice(gone);resolveRansom(r,gone,choice,choice==='discard'?random(gone.hand.length):null)}},BOT_DELAY_MS);if(r.phase==='between'||r.phase==='over')startIfReady(r);broadcast(r);return}
  if(msg.type==='leave'){if(r.phase!=='lobby')throw Error('En cours de partie, utilise Accueil puis éventuellement un bot de remplacement.');r.players=r.players.filter(x=>x!==p);r.teamsDrawn=false;resetLobbyReadiness(r);ws.room=null;ws.pid=null;if(r.tavern.host===p.id){r.tavern.host=allPlayers(r.tavern)[0]?.id||null}refreshHost(r);broadcast(r);if(!allPlayers(r.tavern).length){for(const table of r.tavern.tables)rooms.delete(table.key);taverns.delete(r.code)}send(ws,{type:'left'});return}
  }catch(e){send(ws,{type:'error',message:e.message||'Erreur inconnue'})}}
 const server=http.createServer((req,res)=>{const pathname=new URL(req.url,'http://localhost').pathname;if(pathname==='/api/leaderboard'){res.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify({scores:topScores(),persistent:!!scoreDatabase}));return}const file=pathname==='/'?'/index.html':pathname;if(!['/index.html','/app.js','/style.css'].includes(file)&&!/^\/icons\/[a-z]+\.svg$/.test(file)){res.writeHead(404);res.end('Not found');return}fs.readFile(path.join(ROOT,file),(e,data)=>{if(e){res.writeHead(404);res.end('Not found');return}res.writeHead(200,{'Content-Type':file.endsWith('.js')?'text/javascript; charset=utf-8':file.endsWith('.css')?'text/css; charset=utf-8':file.endsWith('.svg')?'image/svg+xml':'text/html; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(data)})});
